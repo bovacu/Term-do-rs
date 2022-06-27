@@ -46,7 +46,7 @@ impl TaskLayout {
             iconed_line.push_str(line);
 
             if tasks[i].indentation > 1 {
-                let repeated = std::iter::repeat("║    ").take(tasks[i].indentation - 1).collect::<String>().add("╚═══ ").add(iconed_line.as_str());
+                let repeated = std::iter::repeat("     ").take(tasks[i].indentation - 1).collect::<String>().add("╚═══ ").add(iconed_line.as_str());
                 indented_line.push_str(repeated.as_str());
                 let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
                 indented_line.push_str(sub_tasks_string.as_str());
@@ -101,6 +101,13 @@ impl LayoutState for TaskLayout {
                 KeyCode::Char('A') => {
                     self.edit_mode = true;
                     self.is_adding_subtask = true;
+                },
+                KeyCode::Char('d') => unsafe {
+                    let selected_task = data_manager.selected_task;
+                    let selected_group = data_manager.selected_group;
+                    let gi = data_manager.get_group(selected_group);
+                    gi.remove_task(selected_task);
+                    data_manager.selected_task = 0;
                 },
                 KeyCode::Char('q') | KeyCode::Esc => {
                     if !self.edit_mode { return; }
