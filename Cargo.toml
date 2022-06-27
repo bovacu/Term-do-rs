@@ -9,3 +9,6 @@ edition = "2021"
 tui = "0.18"
 crossterm = "0.23"
 chrono = "0.4"
+unicode-width = "0.1.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }

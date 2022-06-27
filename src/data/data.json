@@ -1,0 +1,144 @@
+{
+  "groups": [
+    {
+      "id": 0,
+      "name": "GDE",
+      "tasks": [
+        {
+          "id": 0,
+          "done": false,
+          "name": "Hello",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": [
+            {
+              "id": 1,
+              "done": false,
+              "name": "sub task 1",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 2,
+              "done": false,
+              "name": "sub task 2",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "done": false,
+          "name": "World",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        },
+        {
+          "id": 4,
+          "done": false,
+          "name": "Friends!",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": [
+            {
+              "id": 5,
+              "done": false,
+              "name": "0",
+              "indentation": 1,
+              "parent": 4,
+              "tasks": [
+                {
+                  "id": 6,
+                  "done": false,
+                  "name": "1",
+                  "indentation": 2,
+                  "parent": 5,
+                  "tasks": [
+                    {
+                      "id": 7,
+                      "done": false,
+                      "name": "2",
+                      "indentation": 3,
+                      "parent": 6,
+                      "tasks": [
+                        {
+                          "id": 8,
+                          "done": false,
+                          "name": "3",
+                          "indentation": 4,
+                          "parent": 7,
+                          "tasks": [
+                            {
+                              "id": 9,
+                              "done": false,
+                              "name": "4",
+                              "indentation": 5,
+                              "parent": 8,
+                              "tasks": []
+                            },
+                            {
+                              "id": 10,
+                              "done": false,
+                              "name": "5",
+                              "indentation": 5,
+                              "parent": 8,
+                              "tasks": []
+                            }
+                          ]
+                        },
+                        {
+                          "id": 9,
+                          "done": false,
+                          "name": "6",
+                          "indentation": 4,
+                          "parent": 7,
+                          "tasks": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "done": false,
+          "name": "Another index",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        },
+        {
+          "id": 13,
+          "done": false,
+          "name": "Another another index",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "GDE2",
+      "tasks": [
+        {
+          "id": 0,
+          "done": true,
+          "name": "My task 1 of group GDE2",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        }
+      ]
+    }
+  ],
+  "selected_group": 0,
+  "selected_task": 4
+}
