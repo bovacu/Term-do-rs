@@ -3,7 +3,7 @@ use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::{Rect};
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, BorderType, ListItem, Paragraph};
+use tui::widgets::{Block, Borders, BorderType, Clear, ListItem, Paragraph};
 use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutState};
 
 use tui::{widgets::{List}};
@@ -140,6 +140,7 @@ impl LayoutState for GroupLayout {
                         })
                 .block(options_block);
 
+            f.render_widget(Clear, area);
             f.render_widget(input, area);
 
 

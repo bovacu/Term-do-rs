@@ -4,7 +4,7 @@ use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, BorderType, List, ListItem, Paragraph};
+use tui::widgets::{Block, Borders, BorderType, Clear, List, ListItem, Paragraph};
 use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutState};
 
 use crate::data_manager::TaskItem;
@@ -108,6 +108,7 @@ impl LayoutState for TaskLayout {
                     let gi = data_manager.get_group(selected_group);
                     gi.remove_task(selected_task);
                     data_manager.selected_task = 0;
+                    data_manager.save_state();
                 },
                 KeyCode::Char('q') | KeyCode::Esc => {
                     if !self.edit_mode { return; }
@@ -206,6 +207,7 @@ impl LayoutState for TaskLayout {
                 })
                 .block(options_block);
 
+            f.render_widget(Clear, area);
             f.render_widget(input, area);
 
 

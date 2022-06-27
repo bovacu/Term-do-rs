@@ -71,10 +71,8 @@ impl GroupItem {
 
         let amount_removed : usize;
         if (*task.0).parent != -1 {
-            println!("Par: {}", (*task.0).parent);
             let parent = GroupItem::get_task_recursive((*task.0).parent as usize, &mut self.tasks);
             amount_removed = GroupItem::get_tasks_and_subtasks_count_recursive(&(*task.0).get_tasks()).0 + 1;
-            println!("P: {}, AR: {}, I: {}", (*parent.0).id, amount_removed, task.1);
             (*parent.0).tasks.remove(task.1 as usize);
         } else {
             amount_removed = GroupItem::get_tasks_and_subtasks_count_recursive(&(*task.0).get_tasks()).0 + 1;
@@ -88,7 +86,6 @@ impl GroupItem {
 
     pub unsafe fn add_subtask(&mut self, task_name: String, parent_id: usize) {
         let parent_task = GroupItem::get_task_recursive(parent_id, &mut self.tasks);
-        println!("Pid: {}, Tasks: {}", parent_id, (*parent_task.0).tasks.len());
         let mut new_task = Box::new(TaskItem::new(task_name, parent_id + GroupItem::get_tasks_and_subtasks_count_recursive(&(*parent_task.0).tasks).0 + 1, parent_id as isize));
         new_task.indentation = (*parent_task.0).indentation + 1;
         let new_id = new_task.id;
