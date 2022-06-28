@@ -10,16 +10,17 @@ use tui::{widgets::{List}};
 
 use unicode_width::UnicodeWidthStr;
 use crate::data_manager::GroupItem;
+use crate::enums::InputMode;
 
 pub struct GroupLayout {
-    edit_mode: bool,
+    input_mode: InputMode,
     input: String
 }
 
 impl GroupLayout {
     pub fn new() -> GroupLayout {
         GroupLayout {
-            edit_mode: false,
+            input_mode: InputMode::Navigate,
             input: String::new()
         }
     }
@@ -28,58 +29,88 @@ impl GroupLayout {
 impl LayoutState for GroupLayout {
 
     fn is_in_edit_mode(&self) -> bool {
-        return self.edit_mode;
+        return self.input_mode == InputMode::Add || self.input_mode == InputMode::Edit;
     }
 
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent) {
-        if !self.edit_mode {
-            match key_code.code {
-                KeyCode::Char('a') => {
-                    self.edit_mode = true;
-                },
-                KeyCode::Char('q') | KeyCode::Esc => {
-                    if !self.edit_mode { return; }
-                    self.edit_mode = false;
-                },
-                KeyCode::Up => {
-                    if data_manager.selected_group > 0 {
-                        data_manager.selected_group -= 1;
+        match self.input_mode {
+            InputMode::Navigate => {
+                match key_code.code {
+                    KeyCode::Char('a') => {
+                        self.input_mode = InputMode::Add;
+                    },
+                    KeyCode::Esc => {
+                        if self.input_mode != InputMode::Navigate { return; }
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    KeyCode::Char('e') => {
+                        self.input_mode = InputMode::Edit;
+                    },
+                    KeyCode::Char('d') => {
+                        data_manager.delete_group_item(data_manager.selected_group);
+                        data_manager.save_state();
+                        data_manager.selected_group = 0;
+                    },
+                    KeyCode::Up => {
+                        if data_manager.selected_group > 0 {
+                            data_manager.selected_group -= 1;
+                        }
+                    },
+                    KeyCode::Down => {
+                        if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
+                            data_manager.selected_group += 1;
+                        }
                     }
-                },
-                KeyCode::Down => {
-                    if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
-                        data_manager.selected_group += 1;
+                    _ => {}
+                }
+            },
+            InputMode::Add => {
+                match key_code.code {
+                    KeyCode::Enter => {
+                        let mut gi = GroupItem::new(data_manager);
+                        gi.name = self.input.drain(..).collect();
+                        data_manager.add_group_item(gi);
+                        self.input_mode = InputMode::Navigate;
+                        data_manager.save_state();
                     }
+                    KeyCode::Char(c) => {
+                        self.input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    _ => {}
                 }
-                _ => {}
-            }
-        } else {
-            match key_code.code {
-                KeyCode::Enter => {
-                    let mut gi = GroupItem::new(data_manager);
-                    gi.name = self.input.drain(..).collect();
-                    data_manager.add_group_item(gi);
-                    self.edit_mode = false;
-                    data_manager.save_state();
+            },
+            InputMode::Edit => {
+                match key_code.code {
+                    KeyCode::Enter => {
+                        data_manager.edit_group_item(data_manager.selected_group, self.input.drain(..).collect());
+                        self.input_mode = InputMode::Navigate;
+                        data_manager.save_state();
+                    }
+                    KeyCode::Char(c) => {
+                        self.input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    _ => {}
                 }
-                KeyCode::Char(c) => {
-                    self.input.push(c);
-                }
-                KeyCode::Backspace => {
-                    self.input.pop();
-                }
-                KeyCode::Esc => {
-                    self.edit_mode = false;
-                },
-                _ => {}
             }
         }
     }
 
-    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, lower_chunk: &Rect, chunk: &Vec<Rect>) {
+    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         GroupLayout::create_and_render_base_block(f, app, chunk);
-        GroupLayout::create_and_render_item_list(f, app, chunk);
-        GroupLayout::create_and_render_edit_mode(f, app, chunk, lower_chunk);
+        GroupLayout::create_and_render_item_list(f, app, chunk, frame_size);
+        GroupLayout::create_and_render_edit_mode(f, app, chunk);
     }
 
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
@@ -96,10 +127,16 @@ impl LayoutState for GroupLayout {
         f.render_widget(groups_block, chunk[0]);
     }
 
-    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
+    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         let area = centered_rect(85, 85, chunk[0]);
         let mut items_list: Vec<ListItem> = Vec::new();
-        for i in 0..app.data_manager.get_group_items().len() {
+
+        let height = ListItem::new("Hello").style(Style::default()).height();
+        let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
+        let selected_group = app.data_manager.selected_group;
+        let showing_start_item = if selected_group > max_lines { selected_group - max_lines } else { 0 };
+
+        for i in showing_start_item..app.data_manager.get_group_items().len() {
             let mut line = String::new();
             let group_name = app.data_manager.get_group_items()[i].name.as_str();
             line.push_str(group_name);
@@ -127,13 +164,14 @@ impl LayoutState for GroupLayout {
         f.render_widget(items, area);
     }
 
-    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, _chunk: &Vec<Rect>, lower_chunk: &Rect) {
-        if app.group_layout.edit_mode {
-            let options_block = Block::default().title("Add group").borders(Borders::ALL);
-            let area = centered_rect(40, 10, *lower_chunk);
+    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
+        if app.group_layout.is_in_edit_mode() {
+            let title : String = if app.group_layout.input_mode == InputMode::Add { "Add group".to_string() } else { "Edit group".to_string() };
+            let options_block = Block::default().title(title).borders(Borders::ALL);
+            let area = centered_rect(40, 10, chunk[1]);
 
             let input = Paragraph::new(app.group_layout.input.as_ref())
-                .style( if app.group_layout.edit_mode {
+                .style( if app.group_layout.is_in_edit_mode() {
                             Style::default().add_modifier(Modifier::BOLD)
                         } else {
                             Style::default()
@@ -144,7 +182,7 @@ impl LayoutState for GroupLayout {
             f.render_widget(input, area);
 
 
-            if app.group_layout.edit_mode {
+            if app.group_layout.is_in_edit_mode() {
                 f.set_cursor(
                     // Put cursor past the end of the input text
                     area.x + app.group_layout.input.width() as u16 + 1,

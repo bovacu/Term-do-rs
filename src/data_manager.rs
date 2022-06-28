@@ -94,6 +94,11 @@ impl GroupItem {
         GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut self.tasks);
     }
 
+    pub unsafe fn edit_sub_task(&mut self, task_id: usize, new_text: String) {
+        let task = GroupItem::get_task_recursive(task_id, &mut self.tasks);
+        (*task.0).name = new_text;
+    }
+
     pub fn get_tasks_and_subtasks_count(&self) -> (usize, usize) {
         return GroupItem::get_tasks_and_subtasks_count_recursive(&self.tasks);
     }
@@ -209,6 +214,14 @@ impl DataManager {
 
     pub fn add_group_item(&mut self, group_item: GroupItem) {
         self.groups.push(group_item);
+    }
+
+    pub fn edit_group_item(&mut self, group_id: usize, new_text: String) {
+        self.groups[group_id].name = new_text;
+    }
+
+    pub fn delete_group_item(&mut self, group_id: usize) {
+        self.groups.remove(group_id);
     }
 
     pub fn get_group_items(&self) -> &Vec<GroupItem> {

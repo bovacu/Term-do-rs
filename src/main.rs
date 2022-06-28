@@ -25,10 +25,10 @@ use crate::tasks_layout::{TaskLayout};
 trait LayoutState {
     fn is_in_edit_mode(&self) -> bool;
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent);
-    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, lower_chunk: &Rect, chunk: &Vec<Rect>);
+    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
-    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
-    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, lower_chunk: &Rect);
+    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
+    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
 }
 
 
@@ -131,7 +131,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let top_block = Block::default()
         .borders(Borders::ALL);
 
-    let title = Paragraph::new("ToDo List version 0.1!").block(top_block).alignment(Alignment::Center);
+    let title = Paragraph::new("Term-do 0.5").block(top_block).alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
     let lower_chunks = Layout::default()
@@ -139,8 +139,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .direction(Direction::Horizontal)
         .split(chunks[1]);
 
-    <GroupLayout as LayoutState>::ui(f, app, &chunks[1], &lower_chunks);
-    <TaskLayout as LayoutState>::ui(f, app, &chunks[1], &lower_chunks);
+    <GroupLayout as LayoutState>::ui(f, app, &lower_chunks, &f.size());
+    <TaskLayout as LayoutState>::ui(f, app, &lower_chunks, &f.size());
 
     //
     // match app.focused_layout {

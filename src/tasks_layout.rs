@@ -10,9 +10,10 @@ use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutState};
 use crate::data_manager::TaskItem;
 
 use unicode_width::UnicodeWidthStr;
+use crate::enums::InputMode;
 
 pub struct TaskLayout {
-    edit_mode: bool,
+    input_mode: InputMode,
     is_adding_subtask: bool,
     input: String
 }
@@ -20,16 +21,19 @@ pub struct TaskLayout {
 impl TaskLayout {
     pub fn new() -> TaskLayout {
         TaskLayout {
-            edit_mode: false,
+            input_mode: InputMode::Navigate,
             is_adding_subtask: false,
             input: String::new()
         }
     }
 
-    pub fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<Box<TaskItem>>) -> Vec<ListItem<'a>> {
+    pub fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<Box<TaskItem>>, frame_size: &Rect) -> Vec<ListItem<'a>> {
         let mut item_list : Vec<ListItem> = Vec::new();
+        let height = ListItem::new("Hello").style(Style::default()).height();
+        let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
+        let showing_start_item = if data_manager.selected_task > max_lines { data_manager.selected_task - max_lines } else { 0 };
 
-        for i in 0..tasks.len() {
+        for i in showing_start_item..tasks.len() {
             let line = tasks[i].name.as_str();
             let mut indented_line = String::new();
 
@@ -64,7 +68,7 @@ impl TaskLayout {
             }
 
             if !tasks[i].get_tasks().is_empty() {
-                let mut new_task_items = TaskLayout::recursive_sub_tasks(data_manager, tasks[i].get_tasks());
+                let mut new_task_items = TaskLayout::recursive_sub_tasks(data_manager, tasks[i].get_tasks(), frame_size);
                 item_list.append(&mut new_task_items);
             }
         }
@@ -88,83 +92,116 @@ impl TaskLayout {
 impl LayoutState for TaskLayout {
 
     fn is_in_edit_mode(&self) -> bool {
-        return self.edit_mode;
+        return self.input_mode == InputMode::Add || self.input_mode == InputMode::Edit;
     }
 
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent) {
-        if !self.edit_mode {
-            match key_code.code {
-                KeyCode::Char('a') => {
-                    self.edit_mode = true;
-                    self.is_adding_subtask = false;
-                },
-                KeyCode::Char('A') => {
-                    self.edit_mode = true;
-                    self.is_adding_subtask = true;
-                },
-                KeyCode::Char('d') => unsafe {
-                    let selected_task = data_manager.selected_task;
-                    let selected_group = data_manager.selected_group;
-                    let gi = data_manager.get_group(selected_group);
-                    gi.remove_task(selected_task);
-                    data_manager.selected_task = 0;
-                    data_manager.save_state();
-                },
-                KeyCode::Char('q') | KeyCode::Esc => {
-                    if !self.edit_mode { return; }
-                    self.edit_mode = false;
-                },
-                KeyCode::Char('c') => unsafe {
-                    let selected_task = data_manager.selected_task;
-                    let gi = data_manager.get_group(data_manager.selected_group);
-                    gi.set_task_and_subtasks_done_or_undone(selected_task);
+        match self.input_mode {
+            InputMode::Navigate => {
+                match key_code.code {
+                    KeyCode::Char('a') => {
+                        self.input_mode = InputMode::Add;
+                        self.is_adding_subtask = false;
+                    },
+                    KeyCode::Char('A') => {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        self.input_mode = InputMode::Add;
+                        self.is_adding_subtask = true;
+                    },
+                    KeyCode::Char('e') => {
+                        self.input_mode = InputMode::Edit;
+                        self.is_adding_subtask = false;
+                    },
+                    KeyCode::Char('d') => unsafe {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        let selected_task = data_manager.selected_task;
+                        let selected_group = data_manager.selected_group;
+                        let gi = data_manager.get_group(selected_group);
+                        gi.remove_task(selected_task);
+                        data_manager.selected_task = 0;
+                        data_manager.save_state();
+                    },
+                    KeyCode::Esc => {
+                        if self.input_mode != InputMode::Navigate { return; }
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    KeyCode::Char('c') => unsafe {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        let selected_task = data_manager.selected_task;
+                        let gi = data_manager.get_group(data_manager.selected_group);
+                        gi.set_task_and_subtasks_done_or_undone(selected_task);
 
-                    data_manager.save_state();
-                },
-                KeyCode::Up => {
-                    if data_manager.selected_task > 0 {
-                        data_manager.selected_task -= 1;
+                        data_manager.save_state();
+                    },
+                    KeyCode::Up => {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.selected_task > 0 {
+                            data_manager.selected_task -= 1;
+                        }
+                    },
+                    KeyCode::Down => {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
+                        if data_manager.selected_task < tasks.0 - 1 {
+                            data_manager.selected_task += 1;
+                        }
                     }
-                },
-                KeyCode::Down => {
-                    let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
-                    if data_manager.selected_task < tasks.0 - 1 {
-                        data_manager.selected_task += 1;
+                    _ => {}
+                }
+            },
+            InputMode::Add => {
+                match key_code.code {
+                    KeyCode::Enter => unsafe {
+                        let selected_task = data_manager.selected_task;
+                        let gi = data_manager.get_group(data_manager.selected_group);
+                        if !self.is_adding_subtask {
+                            gi.add_task(self.input.drain(..).collect());
+                        } else {
+                            gi.add_subtask(self.input.drain(..).collect(), selected_task);
+                        }
+                        self.input_mode = InputMode::Navigate;
+                        data_manager.save_state();
                     }
-                }
-                _ => {}
-            }
-        } else {
-            match key_code.code {
-                KeyCode::Enter => unsafe {
-                    let selected_task = data_manager.selected_task;
-                    let gi = data_manager.get_group(data_manager.selected_group);
-                    if !self.is_adding_subtask {
-                        gi.add_task(self.input.drain(..).collect());
-                    } else {
-                        gi.add_subtask(self.input.drain(..).collect(), selected_task);
+                    KeyCode::Char(c) => {
+                        self.input.push(c);
                     }
-                    self.edit_mode = false;
-                    data_manager.save_state();
+                    KeyCode::Backspace => {
+                        self.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    _ => {}
                 }
-                KeyCode::Char(c) => {
-                    self.input.push(c);
+            },
+            InputMode::Edit => {
+                match key_code.code {
+                    KeyCode::Enter => unsafe {
+                        let selected_task = data_manager.selected_task;
+                        let gi = data_manager.get_group(data_manager.selected_group);
+                        gi.edit_sub_task(selected_task, self.input.drain(..).collect());
+                        self.input_mode = InputMode::Navigate;
+                        data_manager.save_state();
+                    }
+                    KeyCode::Char(c) => {
+                        self.input.push(c);
+                    }
+                    KeyCode::Backspace => {
+                        self.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        self.input_mode = InputMode::Navigate;
+                    },
+                    _ => {}
                 }
-                KeyCode::Backspace => {
-                    self.input.pop();
-                }
-                KeyCode::Esc => {
-                    self.edit_mode = false;
-                },
-                _ => {}
             }
         }
     }
 
-    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, lower_chunk: &Rect, chunk: &Vec<Rect>) {
+    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         TaskLayout::create_and_render_base_block(f, app, chunk);
-        TaskLayout::create_and_render_item_list(f, app, chunk);
-        TaskLayout::create_and_render_edit_mode(f, app, chunk, lower_chunk);
+        TaskLayout::create_and_render_item_list(f, app, chunk, frame_size);
+        TaskLayout::create_and_render_edit_mode(f, app, chunk);
 
     }
 
@@ -182,11 +219,15 @@ impl LayoutState for TaskLayout {
         f.render_widget(tasks_block, chunk[1]);
     }
 
-    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
+    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         let area = centered_rect(95, 90, chunk[1]);
 
+        if app.data_manager.get_group_items().is_empty() {
+            return;
+        }
+
         let tasks = app.data_manager.get_group_items()[ app.data_manager.selected_group].get_tasks();
-        let items_list = TaskLayout::recursive_sub_tasks(&app.data_manager, tasks);
+        let items_list = TaskLayout::recursive_sub_tasks(&app.data_manager, tasks, frame_size);
 
         let items = List::new(items_list)
             .block(Block::default().borders(Borders::NONE));
@@ -194,13 +235,14 @@ impl LayoutState for TaskLayout {
         f.render_widget(items, area);
     }
 
-    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, _chunk: &Vec<Rect>, lower_chunk: &Rect) {
-        if app.task_layout.edit_mode {
-            let options_block = Block::default().title("Add task").borders(Borders::ALL);
-            let area = centered_rect(40, 10, *lower_chunk);
+    fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
+        if app.task_layout.is_in_edit_mode() {
+            let title : String = if app.task_layout.input_mode == InputMode::Add { "Add task".to_string() } else { "Edit task".to_string() };
+            let options_block = Block::default().title(title).borders(Borders::ALL);
+            let area = centered_rect(40, 10, chunk[1]);
 
             let input = Paragraph::new(app.task_layout.input.as_ref())
-                .style( if app.task_layout.edit_mode {
+                .style( if app.task_layout.is_in_edit_mode() {
                     Style::default().add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
@@ -211,7 +253,7 @@ impl LayoutState for TaskLayout {
             f.render_widget(input, area);
 
 
-            if app.task_layout.edit_mode {
+            if app.task_layout.is_in_edit_mode() {
                 f.set_cursor(
                     // Put cursor past the end of the input text
                     area.x + app.task_layout.input.width() as u16 + 1,

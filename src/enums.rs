@@ -4,3 +4,10 @@ pub enum FocusedLayout {
     GroupsLayout,
     TasksLayout
 }
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum InputMode {
+    Navigate,
+    Add,
+    Edit
+}
