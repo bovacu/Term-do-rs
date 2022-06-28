@@ -84,7 +84,11 @@ impl GroupItem {
         return amount_removed;
     }
 
-    pub unsafe fn add_subtask(&mut self, task_name: String, parent_id: usize) {
+    pub fn get_task(&mut self, task_id: usize) -> (*mut Box<TaskItem>, isize) {
+        return GroupItem::get_task_recursive(task_id, &mut self.tasks);
+    }
+
+    pub unsafe fn add_subtask(&mut self, task_name: String, parent_id: usize) -> usize {
         let parent_task = GroupItem::get_task_recursive(parent_id, &mut self.tasks);
         let mut new_task = Box::new(TaskItem::new(task_name, parent_id + GroupItem::get_tasks_and_subtasks_count_recursive(&(*parent_task.0).tasks).0 + 1, parent_id as isize));
         new_task.indentation = (*parent_task.0).indentation + 1;
@@ -92,6 +96,8 @@ impl GroupItem {
         (*parent_task.0).tasks.push(new_task);
 
         GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut self.tasks);
+
+        return new_id;
     }
 
     pub unsafe fn edit_sub_task(&mut self, task_id: usize, new_text: String) {
@@ -107,9 +113,13 @@ impl GroupItem {
         return GroupItem::get_tasks_and_subtasks_count_recursive(tasks);
     }
 
-    pub unsafe fn set_task_and_subtasks_done_or_undone(&mut self, task_id: usize) {
+    pub unsafe fn set_task_and_subtasks_done_or_undone(&mut self, task_id: usize, completed: Option<bool>) {
         let parent_task = GroupItem::get_task_recursive(task_id, &mut self.tasks);
-        (*parent_task.0).done = !(*parent_task.0).done;
+        if completed.is_some() {
+            (*parent_task.0).done = completed.unwrap();
+        } else {
+            (*parent_task.0).done = !(*parent_task.0).done;
+        }
         GroupItem::set_task_completed_recursive((*parent_task.0).done, &mut (*parent_task.0).tasks);
 
         let mut top_parent = (*parent_task.0).parent;

@@ -15,7 +15,8 @@ use crate::enums::InputMode;
 pub struct TaskLayout {
     input_mode: InputMode,
     is_adding_subtask: bool,
-    input: String
+    input: String,
+    cursor_pos: usize
 }
 
 impl TaskLayout {
@@ -23,7 +24,8 @@ impl TaskLayout {
         TaskLayout {
             input_mode: InputMode::Navigate,
             is_adding_subtask: false,
-            input: String::new()
+            input: String::new(),
+            cursor_pos: 0
         }
     }
 
@@ -102,22 +104,41 @@ impl LayoutState for TaskLayout {
                     KeyCode::Char('a') => {
                         self.input_mode = InputMode::Add;
                         self.is_adding_subtask = false;
+                        self.input = String::new();
+                        self.cursor_pos = self.input.width();
                     },
                     KeyCode::Char('A') => {
                         if data_manager.get_group_items().is_empty() { return; }
                         self.input_mode = InputMode::Add;
                         self.is_adding_subtask = true;
+                        self.input = String::new();
+                        self.cursor_pos = self.input.width();
                     },
-                    KeyCode::Char('e') => {
+                    KeyCode::Char('e') => unsafe {
                         self.input_mode = InputMode::Edit;
                         self.is_adding_subtask = false;
+
+                        let selected_task = data_manager.selected_task;
+                        let selected_group = data_manager.selected_group;
+                        let gi = data_manager.get_group(selected_group);
+                        let task_name = (*gi.get_task(selected_task).0).name.clone();
+
+                        self.input = task_name;
+                        self.cursor_pos = self.input.width();
                     },
                     KeyCode::Char('d') => unsafe {
                         if data_manager.get_group_items().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let gi = data_manager.get_group(selected_group);
+                        let parent_of_deleted = (*gi.get_task(selected_task).0).parent;
                         gi.remove_task(selected_task);
+
+                        if parent_of_deleted != -1 {
+                            let gi = data_manager.get_group(data_manager.selected_group);
+                            gi.set_task_and_subtasks_done_or_undone(parent_of_deleted as usize, None);
+                        }
+
                         data_manager.selected_task = 0;
                         data_manager.save_state();
                     },
@@ -129,7 +150,7 @@ impl LayoutState for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
-                        gi.set_task_and_subtasks_done_or_undone(selected_task);
+                        gi.set_task_and_subtasks_done_or_undone(selected_task, None);
 
                         data_manager.save_state();
                     },
@@ -157,17 +178,52 @@ impl LayoutState for TaskLayout {
                         if !self.is_adding_subtask {
                             gi.add_task(self.input.drain(..).collect());
                         } else {
-                            gi.add_subtask(self.input.drain(..).collect(), selected_task);
+                            let new_id = gi.add_subtask(self.input.drain(..).collect(), selected_task);
+
+                            let selected_task = new_id;
+                            let gi = data_manager.get_group(data_manager.selected_group);
+                            gi.set_task_and_subtasks_done_or_undone(selected_task, Some(false));
                         }
+
                         self.input_mode = InputMode::Navigate;
                         data_manager.save_state();
-                    }
+                    },
                     KeyCode::Char(c) => {
-                        self.input.push(c);
-                    }
+                        if self.cursor_pos == self.input.width() {
+                            self.input.push(c);
+                        } else {
+                            self.input.insert(self.cursor_pos, c);
+                        }
+                        self.cursor_pos += 1;
+                    },
                     KeyCode::Backspace => {
-                        self.input.pop();
-                    }
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                self.input.pop();
+                            } else {
+                                self.input.remove(self.cursor_pos - 1);
+                            }
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Delete => {
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                return;
+                            }
+                            self.input.remove(self.cursor_pos);
+                        }
+                    },
+                    KeyCode::Left => {
+                        if self.cursor_pos > 0 {
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Right => {
+                        if self.cursor_pos < self.input.width() {
+                            self.cursor_pos += 1;
+                        }
+                    },
                     KeyCode::Esc => {
                         self.input_mode = InputMode::Navigate;
                     },
@@ -182,13 +238,43 @@ impl LayoutState for TaskLayout {
                         gi.edit_sub_task(selected_task, self.input.drain(..).collect());
                         self.input_mode = InputMode::Navigate;
                         data_manager.save_state();
-                    }
+                    },
                     KeyCode::Char(c) => {
-                        self.input.push(c);
-                    }
+                        if self.cursor_pos == self.input.width() {
+                            self.input.push(c);
+                        } else {
+                            self.input.insert(self.cursor_pos, c);
+                        }
+                        self.cursor_pos += 1;
+                    },
                     KeyCode::Backspace => {
-                        self.input.pop();
-                    }
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                self.input.pop();
+                            } else {
+                                self.input.remove(self.cursor_pos - 1);
+                            }
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Delete => {
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                return;
+                            }
+                            self.input.remove(self.cursor_pos);
+                        }
+                    },
+                    KeyCode::Left => {
+                        if self.cursor_pos > 0 {
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Right => {
+                        if self.cursor_pos < self.input.width() {
+                            self.cursor_pos += 1;
+                        }
+                    },
                     KeyCode::Esc => {
                         self.input_mode = InputMode::Navigate;
                     },
@@ -201,8 +287,6 @@ impl LayoutState for TaskLayout {
     fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         TaskLayout::create_and_render_base_block(f, app, chunk);
         TaskLayout::create_and_render_item_list(f, app, chunk, frame_size);
-        TaskLayout::create_and_render_edit_mode(f, app, chunk);
-
     }
 
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
@@ -237,7 +321,8 @@ impl LayoutState for TaskLayout {
 
     fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
         if app.task_layout.is_in_edit_mode() {
-            let title : String = if app.task_layout.input_mode == InputMode::Add { "Add task".to_string() } else { "Edit task".to_string() };
+            let title : String = if app.task_layout.input_mode == InputMode::Add {  if app.task_layout.is_adding_subtask { "Add subtask".to_string() } else { "Add task".to_string() } }
+                                                                                    else { "Edit task".to_string() };
             let options_block = Block::default().title(title).borders(Borders::ALL);
             let area = centered_rect(40, 10, chunk[1]);
 
@@ -256,7 +341,7 @@ impl LayoutState for TaskLayout {
             if app.task_layout.is_in_edit_mode() {
                 f.set_cursor(
                     // Put cursor past the end of the input text
-                    area.x + app.task_layout.input.width() as u16 + 1,
+                    area.x +  app.task_layout.cursor_pos as u16 + 1,
                     // Move one line down, from the border to the input line
                     area.y + 1,
                 )

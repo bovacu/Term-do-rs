@@ -14,14 +14,16 @@ use crate::enums::InputMode;
 
 pub struct GroupLayout {
     input_mode: InputMode,
-    input: String
+    input: String,
+    cursor_pos: usize
 }
 
 impl GroupLayout {
     pub fn new() -> GroupLayout {
         GroupLayout {
             input_mode: InputMode::Navigate,
-            input: String::new()
+            input: String::new(),
+            cursor_pos: 0
         }
     }
 }
@@ -38,6 +40,8 @@ impl LayoutState for GroupLayout {
                 match key_code.code {
                     KeyCode::Char('a') => {
                         self.input_mode = InputMode::Add;
+                        self.input = String::new();
+                        self.cursor_pos = self.input.width();
                     },
                     KeyCode::Esc => {
                         if self.input_mode != InputMode::Navigate { return; }
@@ -45,6 +49,8 @@ impl LayoutState for GroupLayout {
                     },
                     KeyCode::Char('e') => {
                         self.input_mode = InputMode::Edit;
+                        self.input = data_manager.get_group(data_manager.selected_group).name.clone();
+                        self.cursor_pos = self.input.width();
                     },
                     KeyCode::Char('d') => {
                         data_manager.delete_group_item(data_manager.selected_group);
@@ -72,13 +78,43 @@ impl LayoutState for GroupLayout {
                         data_manager.add_group_item(gi);
                         self.input_mode = InputMode::Navigate;
                         data_manager.save_state();
-                    }
+                    },
                     KeyCode::Char(c) => {
-                        self.input.push(c);
-                    }
+                        if self.cursor_pos == self.input.width() {
+                            self.input.push(c);
+                        } else {
+                            self.input.insert(self.cursor_pos, c);
+                        }
+                        self.cursor_pos += 1;
+                    },
                     KeyCode::Backspace => {
-                        self.input.pop();
-                    }
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                self.input.pop();
+                            } else {
+                                self.input.remove(self.cursor_pos - 1);
+                            }
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Delete => {
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                return;
+                            }
+                            self.input.remove(self.cursor_pos);
+                        }
+                    },
+                    KeyCode::Left => {
+                        if self.cursor_pos > 0 {
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Right => {
+                        if self.cursor_pos < self.input.width() {
+                            self.cursor_pos += 1;
+                        }
+                    },
                     KeyCode::Esc => {
                         self.input_mode = InputMode::Navigate;
                     },
@@ -91,13 +127,43 @@ impl LayoutState for GroupLayout {
                         data_manager.edit_group_item(data_manager.selected_group, self.input.drain(..).collect());
                         self.input_mode = InputMode::Navigate;
                         data_manager.save_state();
-                    }
+                    },
                     KeyCode::Char(c) => {
-                        self.input.push(c);
-                    }
+                        if self.cursor_pos == self.input.width() {
+                            self.input.push(c);
+                        } else {
+                            self.input.insert(self.cursor_pos, c);
+                        }
+                        self.cursor_pos += 1;
+                    },
                     KeyCode::Backspace => {
-                        self.input.pop();
-                    }
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                self.input.pop();
+                            } else {
+                                self.input.remove(self.cursor_pos - 1);
+                            }
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Delete => {
+                        if self.cursor_pos > 0 {
+                            if self.cursor_pos == self.input.width() {
+                                return;
+                            }
+                            self.input.remove(self.cursor_pos);
+                        }
+                    },
+                    KeyCode::Left => {
+                        if self.cursor_pos > 0 {
+                            self.cursor_pos -= 1;
+                        }
+                    },
+                    KeyCode::Right => {
+                        if self.cursor_pos < self.input.width() {
+                            self.cursor_pos += 1;
+                        }
+                    },
                     KeyCode::Esc => {
                         self.input_mode = InputMode::Navigate;
                     },
@@ -110,7 +176,6 @@ impl LayoutState for GroupLayout {
     fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         GroupLayout::create_and_render_base_block(f, app, chunk);
         GroupLayout::create_and_render_item_list(f, app, chunk, frame_size);
-        GroupLayout::create_and_render_edit_mode(f, app, chunk);
     }
 
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
@@ -185,7 +250,7 @@ impl LayoutState for GroupLayout {
             if app.group_layout.is_in_edit_mode() {
                 f.set_cursor(
                     // Put cursor past the end of the input text
-                    area.x + app.group_layout.input.width() as u16 + 1,
+                    area.x +  app.group_layout.cursor_pos as u16 + 1,
                     // Move one line down, from the border to the input line
                     area.y + 1,
                 )

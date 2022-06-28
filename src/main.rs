@@ -99,10 +99,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 if !app.group_layout.is_in_edit_mode() && !app.task_layout.is_in_edit_mode() {
                     return Ok(());
                 }
-            } else if key.code == KeyCode::Left {
+            } else if key.code == KeyCode::Left && (!app.group_layout.is_in_edit_mode() && !app.task_layout.is_in_edit_mode()) {
                 app.update_state(FocusedLayout::GroupsLayout);
                 app.data_manager.selected_task = 0;
-            } else if key.code == KeyCode::Right {
+            } else if key.code == KeyCode::Right && (!app.group_layout.is_in_edit_mode() && !app.task_layout.is_in_edit_mode()) {
                 app.update_state(FocusedLayout::TasksLayout);
             }
 
@@ -141,6 +141,9 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     <GroupLayout as LayoutState>::ui(f, app, &lower_chunks, &f.size());
     <TaskLayout as LayoutState>::ui(f, app, &lower_chunks, &f.size());
+
+    <GroupLayout as LayoutState>::create_and_render_edit_mode(f, app, &lower_chunks);
+    <TaskLayout as LayoutState>::create_and_render_edit_mode(f, app, &lower_chunks);
 
     //
     // match app.focused_layout {
