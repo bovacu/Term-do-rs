@@ -326,7 +326,13 @@ impl LayoutState for TaskLayout {
             let options_block = Block::default().title(title).borders(Borders::ALL);
             let area = centered_rect(40, 10, chunk[1]);
 
-            let input = Paragraph::new(app.task_layout.input.as_ref())
+            let mut starting_rendering_input_point = 0;
+
+            if app.task_layout.input.width() > (area.width as f32 / 1.1) as usize {
+                starting_rendering_input_point = app.task_layout.input.width() - (area.width as f32 / 1.1) as usize;
+            }
+
+            let input = Paragraph::new(app.task_layout.input[starting_rendering_input_point..].as_ref())
                 .style( if app.task_layout.is_in_edit_mode() {
                     Style::default().add_modifier(Modifier::BOLD)
                 } else {
@@ -341,7 +347,7 @@ impl LayoutState for TaskLayout {
             if app.task_layout.is_in_edit_mode() {
                 f.set_cursor(
                     // Put cursor past the end of the input text
-                    area.x +  app.task_layout.cursor_pos as u16 + 1,
+                    area.x +  app.task_layout.cursor_pos as u16 + 1 - starting_rendering_input_point as u16,
                     // Move one line down, from the border to the input line
                     area.y + 1,
                 )
