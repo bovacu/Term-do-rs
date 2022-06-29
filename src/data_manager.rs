@@ -49,7 +49,8 @@ pub struct TaskItem {
     pub(crate) name: String,
     pub(crate) indentation: usize,
     pub(crate) parent: isize,
-    pub(crate) tasks: Vec<TaskItem>
+    pub(crate) tasks: Vec<TaskItem>,
+    pub(crate) folded: bool
 }
 
 impl TaskItem {
@@ -60,7 +61,8 @@ impl TaskItem {
             name: task_name,
             indentation: 0,
             tasks: Vec::new(),
-            parent: parent_id
+            parent: parent_id,
+            folded: false
         }
     }
 
@@ -76,6 +78,10 @@ impl TaskItem {
         }
 
         return completed;
+    }
+
+    pub fn fold(&mut self) {
+        self.folded = !self.folded;
     }
 }
 
@@ -101,6 +107,10 @@ impl GroupItem {
 
     pub fn get_tasks(&self) -> &Vec<TaskItem> {
         return &self.tasks;
+    }
+
+    pub fn get_tasks_mut(&mut self) -> &mut Vec<TaskItem> {
+        return &mut self.tasks;
     }
 
     pub fn add_task(&mut self, task_name: String) {

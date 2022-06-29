@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use std::ops::Add;
 use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
@@ -16,13 +16,20 @@ use crate::enums::InputMode;
 pub struct TaskLayout {
     pub(crate) layout_common: LayoutCommon,
     is_adding_subtask: bool,
+    folded_state: HashMap<usize, Vec<usize>>
+}
+
+struct ParentInfo {
+    needs_vertical_bar: bool,
+    is_folded: bool
 }
 
 impl TaskLayout {
     pub fn new() -> TaskLayout {
         TaskLayout {
             layout_common: LayoutCommon::new(),
-            is_adding_subtask: false
+            is_adding_subtask: false,
+            folded_state: HashMap::new()
         }
     }
 
@@ -51,7 +58,7 @@ impl TaskLayout {
             if tasks[i].indentation > 1 {
 
                 let mut top_parent = tasks[i].parent;
-                let mut amount_of_fucking_vertical_sticks : HashMap<usize, usize> = HashMap::new();
+                let mut amount_of_fucking_vertical_sticks : HashMap<usize, ParentInfo> = HashMap::new();
                 let selected_group = data_manager.selected_group;
                 let gi = data_manager.get_group_read_only(selected_group);
 
@@ -59,10 +66,10 @@ impl TaskLayout {
                     let top_parent_task = GroupItem::get_task_recursive_read_only(top_parent as usize, gi.get_tasks()).unwrap();
                     for t in top_parent_task.0.get_tasks() {
                         if t.id > tasks[i].id {
-                            amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 1);
+                            amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, ParentInfo { needs_vertical_bar: true, is_folded: top_parent_task.0.folded });
                             continue;
                         }
-                        amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 0);
+                        amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, ParentInfo { needs_vertical_bar: false, is_folded: top_parent_task.0.folded });
                     }
 
                     top_parent = top_parent_task.0.parent;
@@ -71,22 +78,36 @@ impl TaskLayout {
 
                 let mut repeated = String::new();
 
-                for i in 0..tasks[i].indentation - 1 {
-                    if amount_of_fucking_vertical_sticks.contains_key(&i) && amount_of_fucking_vertical_sticks[&i] == 0 {
-                        repeated = repeated.add("     ");
-                    } else {
-                        repeated = repeated.add("║    ");
+                let parent_folded = amount_of_fucking_vertical_sticks.iter().any(|e| e.1.is_folded);
+
+                if !parent_folded {
+                    for i in 0..tasks[i].indentation - 1 {
+                        if amount_of_fucking_vertical_sticks.contains_key(&i) && !amount_of_fucking_vertical_sticks[&i].needs_vertical_bar {
+                            repeated = repeated.add("     ");
+                        } else {
+                            repeated = repeated.add("║    ");
+                        }
                     }
+
+                    repeated = repeated.add("╚═══ ").add(iconed_line.as_str());
+                    indented_line.push_str(repeated.as_str());
+                    let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
+                    indented_line.push_str(sub_tasks_string.as_str());
+                }
+            } else {
+                let mut folded = false;
+                if tasks[i].parent != -1 {
+                    let selected_group = data_manager.selected_group;
+                    let gi = data_manager.get_group_read_only(selected_group);
+                    let top_parent_task = GroupItem::get_task_recursive_read_only(tasks[i].parent as usize, gi.get_tasks()).unwrap();
+                    folded = top_parent_task.0.folded;
                 }
 
-                repeated = repeated.add("╚═══ ").add(iconed_line.as_str());
-                indented_line.push_str(repeated.as_str());
-                let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
-                indented_line.push_str(sub_tasks_string.as_str());
-            } else {
-                indented_line = std::iter::repeat("╚═══ ").take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
-                let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
-                indented_line.push_str(sub_tasks_string.as_str());
+                if !folded {
+                    indented_line = std::iter::repeat("╚═══ ").take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
+                    let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
+                    indented_line.push_str(sub_tasks_string.as_str());
+                }
             }
 
             if tasks[i].id == data_manager.selected_task {
@@ -167,31 +188,29 @@ impl LayoutCommonTrait for TaskLayout {
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let parent_of_deleted : isize;
-                        let task_id : usize;
-                        let task_pos : isize;
                         let task_ro : (TaskItem, isize);
 
-                        {
-                            let gi_ro = data_manager.get_group_read_only(selected_group);
-                            let tasks = gi_ro.get_tasks();
-                            let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
-                            task_ro = (task.0.clone(), task.1);
-                            task_id = task.0.id;
-                            task_pos = task.1;
-                            parent_of_deleted = task.0.parent;
+
+                        let gi_ro = data_manager.get_group_read_only(selected_group);
+                        let tasks = gi_ro.get_tasks();
+                        let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
+                        task_ro = (task.0.clone(), task.1);
+                        parent_of_deleted = task.0.parent;
+
+
+                        let gi = data_manager.get_group(selected_group);
+                        gi.remove_task((&task_ro.0, task_ro.1));
+
+                        if parent_of_deleted != -1 {
+                            gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
                         }
 
-                        {
-                            let gi = data_manager.get_group(selected_group);
-                            gi.remove_task((&task_ro.0, task_ro.1));
+                        if selected_task == gi.get_tasks_and_subtasks_count().0 && selected_task > 0 {
+                            data_manager.selected_task -= 1;
+                        }
 
-                            if parent_of_deleted != -1 {
-                                gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
-                            }
-
-                            if selected_task == gi.get_tasks_and_subtasks_count().0 && selected_task > 0 {
-                                data_manager.selected_task -= 1;
-                            }
+                        if self.folded_state.contains_key(&data_manager.selected_task) {
+                            self.folded_state.remove(&data_manager.selected_task);
                         }
 
                         data_manager.save_state();
@@ -202,15 +221,47 @@ impl LayoutCommonTrait for TaskLayout {
                     },
                     KeyCode::Char('c') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         gi.set_task_and_subtasks_done_or_undone(selected_task, None);
 
                         data_manager.save_state();
                     },
+                    KeyCode::Char('f') => {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                        let selected_task = data_manager.selected_task;
+                        let selected_group = data_manager.selected_group;
+                        let gi = data_manager.get_group(selected_group);
+                        TaskItem::fold(GroupItem::get_task_recursive(selected_task, &mut gi.get_tasks_mut()).unwrap().0);
+                        let task = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap();
+
+                        if task.0.folded {
+                            let elements_to_skip = gi.get_tasks_and_subtasks_count_specific(task.0.get_tasks()).0;
+
+                            let mut folded_state_entry : Vec<usize> = Vec::new();
+                            for i in 0..elements_to_skip {
+                                folded_state_entry.push(selected_task + i + 1);
+                            }
+                            self.folded_state.insert(selected_task, folded_state_entry);
+                        } else {
+                            self.folded_state.remove(&selected_task);
+                        }
+                    },
                     KeyCode::Up => {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.selected_task > 0 {
+
+                            for (_, entry) in self.folded_state.iter() {
+                                let previous_task = data_manager.selected_task - 1;
+                                if entry.contains(&previous_task) {
+                                    data_manager.selected_task -= entry.len();
+                                    break;
+                                }
+                            }
+
                             data_manager.selected_task -= 1;
                         }
                     },
@@ -218,6 +269,15 @@ impl LayoutCommonTrait for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
                         if data_manager.selected_task < tasks.0 - 1 {
+
+                            for (_, entry) in self.folded_state.iter() {
+                                let next_task = data_manager.selected_task + 1;
+                                if entry.contains(&next_task) {
+                                    data_manager.selected_task += entry.len();
+                                    break;
+                                }
+                            }
+
                             data_manager.selected_task += 1;
                         }
                     }
