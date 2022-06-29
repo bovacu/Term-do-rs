@@ -27,9 +27,9 @@ use unicode_width::UnicodeWidthStr;
 
 trait LayoutCommonTrait {
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent);
-    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
+    unsafe fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
-    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
+    unsafe fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
     fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
 
     fn is_in_edit_mode(layout_common: &LayoutCommon) -> bool {
@@ -186,7 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut app = App::new();
     app.data_manager.load_state();
-    let res = run_app(&mut terminal, &mut app);
+    let res = unsafe { run_app(&mut terminal, &mut app) };
 
     disable_raw_mode()?;
     execute!(
@@ -203,7 +203,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+unsafe fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
 
     while app.run {
         terminal.draw(|f| ui(f, app))?;
@@ -236,7 +236,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
     return Ok(());
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+unsafe fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let size = f.size();
 
     let chunks = Layout::default()

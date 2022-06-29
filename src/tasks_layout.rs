@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Add;
 use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
@@ -25,7 +26,7 @@ impl TaskLayout {
         }
     }
 
-    pub fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<Box<TaskItem>>, frame_size: &Rect) -> Vec<ListItem<'a>> {
+    pub unsafe fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<Box<TaskItem>>, frame_size: &Rect) -> Vec<ListItem<'a>> {
         let mut item_list : Vec<ListItem> = Vec::new();
         let height = ListItem::new("Hello").style(Style::default()).height();
         let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
@@ -48,7 +49,37 @@ impl TaskLayout {
             iconed_line.push_str(line);
 
             if tasks[i].indentation > 1 {
-                let repeated = std::iter::repeat("     ").take(tasks[i].indentation - 1).collect::<String>().add("╚═══ ").add(iconed_line.as_str());
+
+                let mut top_parent = tasks[i].parent;
+                let mut amount_of_fucking_vertical_sticks : HashMap<usize, usize> = HashMap::new();
+                let selected_group = data_manager.selected_group;
+                let gi = data_manager.get_group_read_only(selected_group);
+
+                while top_parent != -1 {
+                    let top_parent_task = gi.get_task(top_parent as usize);
+
+                    for t in (*top_parent_task.0).get_tasks() {
+                        if t.id > tasks[i].id {
+                            amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 1);
+                            continue;
+                        }
+                        amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 0);
+                    }
+
+                    top_parent = (*top_parent_task.0).parent;
+                }
+
+                let mut repeated = String::new();
+
+                for i in 0..tasks[i].indentation - 1 {
+                    if amount_of_fucking_vertical_sticks[&i] == 1 {
+                        repeated = repeated.add("║    ");
+                    } else {
+                        repeated = repeated.add("     ");
+                    }
+                }
+
+                repeated = repeated.add("╚═══ ").add(iconed_line.as_str());
                 indented_line.push_str(repeated.as_str());
                 let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
                 indented_line.push_str(sub_tasks_string.as_str());
@@ -214,7 +245,7 @@ impl LayoutCommonTrait for TaskLayout {
         }
     }
 
-    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+    unsafe fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         TaskLayout::create_and_render_base_block(f, app, chunk);
         TaskLayout::create_and_render_item_list(f, app, chunk, frame_size);
     }
@@ -233,7 +264,7 @@ impl LayoutCommonTrait for TaskLayout {
         f.render_widget(tasks_block, chunk[1]);
     }
 
-    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+    unsafe fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         let area = centered_rect(95, 90, chunk[1]);
 
         if app.data_manager.get_group_items().is_empty() {

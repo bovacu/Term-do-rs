@@ -127,8 +127,8 @@ impl GroupItem {
         return amount_removed;
     }
 
-    pub fn get_task(&mut self, task_id: usize) -> (*mut Box<TaskItem>, isize) {
-        return GroupItem::get_task_recursive(task_id, &mut self.tasks);
+    pub fn get_task(&self, task_id: usize) -> (*const Box<TaskItem>, isize) {
+        return GroupItem::get_task_recursive_read_only(task_id, &self.tasks);
     }
 
     pub unsafe fn add_subtask(&mut self, task_name: String, parent_id: usize) -> usize {
@@ -185,6 +185,25 @@ impl GroupItem {
 
         for i in 0..tasks.len() {
             let result = GroupItem::get_task_recursive(task_id, &mut tasks[i].tasks);
+            if result.0 == null_mut() {
+                continue;
+            }
+            return result;
+        }
+
+        return (null_mut(), -1);
+    }
+
+    fn get_task_recursive_read_only(task_id: usize, tasks: &Vec<Box<TaskItem>>) -> (*const Box<TaskItem>, isize) {
+        for i in 0..tasks.len() {
+            let task = tasks[i].id;
+            if task == task_id {
+                return (&tasks[i], i as isize);
+            }
+        }
+
+        for i in 0..tasks.len() {
+            let result = GroupItem::get_task_recursive_read_only(task_id, &tasks[i].tasks);
             if result.0 == null_mut() {
                 continue;
             }
