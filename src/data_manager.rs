@@ -50,7 +50,7 @@ pub struct TaskItem {
     pub(crate) name: String,
     pub(crate) indentation: usize,
     pub(crate) parent: isize,
-    tasks: Vec<Box<TaskItem>>
+    tasks: Vec<TaskItem>
 }
 
 impl TaskItem {
@@ -65,11 +65,11 @@ impl TaskItem {
         }
     }
 
-    pub fn get_tasks(&self) -> &Vec<Box<TaskItem>> {
+    pub fn get_tasks(&self) -> &Vec<TaskItem> {
         return &self.tasks;
     }
 
-    pub fn are_all_sub_tasks_done(&self, task: &Vec<Box<TaskItem>>) -> bool {
+    pub fn are_all_sub_tasks_done(&self, task: &Vec<TaskItem>) -> bool {
         let mut completed = true;
         for i in 0..task.len() {
             completed &= task[i].done;
@@ -88,7 +88,7 @@ impl TaskItem {
 pub struct GroupItem {
     id: usize,
     pub name: String,
-    tasks: Vec<Box<TaskItem>>
+    tasks: Vec<TaskItem>
 }
 
 impl GroupItem {
@@ -100,13 +100,13 @@ impl GroupItem {
         }
     }
 
-    pub fn get_tasks(&self) -> &Vec<Box<TaskItem>> {
+    pub fn get_tasks(&self) -> &Vec<TaskItem> {
         return &self.tasks;
     }
 
     pub fn add_task(&mut self, task_name: String) {
         let task = TaskItem::new(task_name, GroupItem::get_tasks_and_subtasks_count(self).0, -1);
-        self.tasks.push(Box::new(task));
+        self.tasks.push(task);
     }
 
     pub unsafe fn remove_task(&mut self, task_id: usize) -> usize {
@@ -127,13 +127,13 @@ impl GroupItem {
         return amount_removed;
     }
 
-    pub fn get_task(&self, task_id: usize) -> (*const Box<TaskItem>, isize) {
+    pub fn get_task(&self, task_id: usize) -> (*const TaskItem, isize) {
         return GroupItem::get_task_recursive_read_only(task_id, &self.tasks);
     }
 
     pub unsafe fn add_subtask(&mut self, task_name: String, parent_id: usize) -> usize {
         let parent_task = GroupItem::get_task_recursive(parent_id, &mut self.tasks);
-        let mut new_task = Box::new(TaskItem::new(task_name, parent_id + GroupItem::get_tasks_and_subtasks_count_recursive(&(*parent_task.0).tasks).0 + 1, parent_id as isize));
+        let mut new_task = TaskItem::new(task_name, parent_id + GroupItem::get_tasks_and_subtasks_count_recursive(&(*parent_task.0).tasks).0 + 1, parent_id as isize);
         new_task.indentation = (*parent_task.0).indentation + 1;
         let new_id = new_task.id;
         (*parent_task.0).tasks.push(new_task);
@@ -152,7 +152,7 @@ impl GroupItem {
         return GroupItem::get_tasks_and_subtasks_count_recursive(&self.tasks);
     }
 
-    pub fn get_tasks_and_subtasks_count_specific(&self, tasks: &Vec<Box<TaskItem>>) -> (usize, usize) {
+    pub fn get_tasks_and_subtasks_count_specific(&self, tasks: &Vec<TaskItem>) -> (usize, usize) {
         return GroupItem::get_tasks_and_subtasks_count_recursive(tasks);
     }
 
@@ -190,7 +190,7 @@ impl GroupItem {
         }
     }
 
-    fn get_task_recursive(task_id: usize, tasks: &mut Vec<Box<TaskItem>>) -> (*mut Box<TaskItem>, isize) {
+    fn get_task_recursive(task_id: usize, tasks: &mut Vec<TaskItem>) -> (*mut TaskItem, isize) {
         for i in 0..tasks.len() {
             let task = tasks[i].id;
             if task == task_id {
@@ -209,7 +209,7 @@ impl GroupItem {
         return (null_mut(), -1);
     }
 
-    fn get_task_recursive_read_only(task_id: usize, tasks: &Vec<Box<TaskItem>>) -> (*const Box<TaskItem>, isize) {
+    fn get_task_recursive_read_only(task_id: usize, tasks: &Vec<TaskItem>) -> (*const TaskItem, isize) {
         for i in 0..tasks.len() {
             let task = tasks[i].id;
             if task == task_id {
@@ -228,14 +228,14 @@ impl GroupItem {
         return (null_mut(), -1);
     }
 
-    fn set_task_completed_recursive(completed: bool, tasks: &mut Vec<Box<TaskItem>>) {
+    fn set_task_completed_recursive(completed: bool, tasks: &mut Vec<TaskItem>) {
         for i in 0..tasks.len() {
             tasks[i].done = completed;
             GroupItem::set_task_completed_recursive(completed, &mut tasks[i].tasks);
         }
     }
 
-    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<Box<TaskItem>>) {
+    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<TaskItem>) {
         for i in 0..tasks.len() {
             if tasks[i].id >= new_id  {
                 tasks[i].id += 1;
@@ -247,7 +247,7 @@ impl GroupItem {
         }
     }
 
-    fn recalculate_tasks_ids_on_remove(tasks: &mut Vec<Box<TaskItem>>, removed_id: usize, amount_removed: usize) {
+    fn recalculate_tasks_ids_on_remove(tasks: &mut Vec<TaskItem>, removed_id: usize, amount_removed: usize) {
         for i in 0..tasks.len() {
             if tasks[i].id > removed_id  {
                 tasks[i].id -= amount_removed;
@@ -260,7 +260,7 @@ impl GroupItem {
         }
     }
 
-    fn get_tasks_and_subtasks_count_recursive(tasks: &Vec<Box<TaskItem>>) -> (usize, usize) {
+    fn get_tasks_and_subtasks_count_recursive(tasks: &Vec<TaskItem>) -> (usize, usize) {
         let mut count = 0;
         let mut completed = 0;
         for task in tasks {

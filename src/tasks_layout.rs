@@ -26,7 +26,7 @@ impl TaskLayout {
         }
     }
 
-    pub unsafe fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<Box<TaskItem>>, frame_size: &Rect) -> Vec<ListItem<'a>> {
+    pub unsafe fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<TaskItem>, frame_size: &Rect) -> Vec<ListItem<'a>> {
         let mut item_list : Vec<ListItem> = Vec::new();
         let height = ListItem::new("Hello").style(Style::default()).height();
         let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
@@ -105,7 +105,7 @@ impl TaskLayout {
         return item_list;
     }
 
-    fn sub_tasks_string(data_manager: &DataManager, tasks: &Vec<Box<TaskItem>>) -> String {
+    fn sub_tasks_string(data_manager: &DataManager, tasks: &Vec<TaskItem>) -> String {
         let selected_group = data_manager.selected_group;
         let gi = data_manager.get_group_read_only(selected_group);
         let sub_tasks_count = gi.get_tasks_and_subtasks_count_specific(tasks);
