@@ -8,7 +8,7 @@ use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, BorderType, List, ListItem};
 use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutCommon, LayoutCommonTrait};
 
-use crate::data_manager::TaskItem;
+use crate::data_manager::{GroupItem, TaskItem};
 
 use unicode_width::UnicodeWidthStr;
 use crate::enums::InputMode;
@@ -26,7 +26,7 @@ impl TaskLayout {
         }
     }
 
-    pub unsafe fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<TaskItem>, frame_size: &Rect) -> Vec<ListItem<'a>> {
+    pub  fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<TaskItem>, frame_size: &Rect) -> Vec<ListItem<'a>> {
         let mut item_list : Vec<ListItem> = Vec::new();
         let height = ListItem::new("Hello").style(Style::default()).height();
         let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
@@ -56,9 +56,8 @@ impl TaskLayout {
                 let gi = data_manager.get_group_read_only(selected_group);
 
                 while top_parent != -1 {
-                    let top_parent_task = gi.get_task(top_parent as usize);
-
-                    for t in (*top_parent_task.0).get_tasks() {
+                    let top_parent_task = GroupItem::get_task_recursive_read_only(top_parent as usize, gi.get_tasks()).unwrap();
+                    for t in top_parent_task.0.get_tasks() {
                         if t.id > tasks[i].id {
                             amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 1);
                             continue;
@@ -66,7 +65,8 @@ impl TaskLayout {
                         amount_of_fucking_vertical_sticks.insert((*top_parent_task.0).indentation, 0);
                     }
 
-                    top_parent = (*top_parent_task.0).parent;
+                    top_parent = top_parent_task.0.parent;
+
                 }
 
                 let mut repeated = String::new();
@@ -147,30 +147,45 @@ impl LayoutCommonTrait for TaskLayout {
 
                         LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
-                    KeyCode::Char('e') => unsafe {
+                    KeyCode::Char('e') =>  {
                         self.layout_common.input_mode = InputMode::Edit;
                         self.is_adding_subtask = false;
 
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let gi = data_manager.get_group(selected_group);
-                        let task_name = (*gi.get_task(selected_task).0).name.clone();
+                        let task_name = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap().0.name.clone();
 
                         self.layout_common.input = task_name;
                         self.layout_common.cursor_pos = self.layout_common.input.width();
 
                         LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
-                    KeyCode::Char('d') => unsafe {
+                    KeyCode::Char('d') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
-                        let gi = data_manager.get_group(selected_group);
-                        let parent_of_deleted = (*gi.get_task(selected_task).0).parent;
-                        gi.remove_task(selected_task);
+                        let parent_of_deleted : isize;
+                        let task_id : usize;
+                        let task_pos : isize;
 
-                        if parent_of_deleted != -1 {
-                            gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
+                        {
+                            let gi_ro = data_manager.get_group_read_only(selected_group);
+                            let tasks = gi_ro.get_tasks();
+                            let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
+                            task_id = task.0.id;
+                            task_pos = task.1;
+                            parent_of_deleted = task.0.parent;
+                        }
+
+                        {
+                            let gi = data_manager.get_group(selected_group);
+                            let task_inner = TaskItem::new("".to_string(), task_id, parent_of_deleted);
+                            gi.remove_task((&task_inner, task_pos));
+
+                            if parent_of_deleted != -1 {
+                                gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
+                            }
                         }
 
                         // data_manager.selected_task = 0;
@@ -180,7 +195,7 @@ impl LayoutCommonTrait for TaskLayout {
                         if self.layout_common.input_mode != InputMode::Navigate { return; }
                         self.layout_common.input_mode = InputMode::Navigate;
                     },
-                    KeyCode::Char('c') => unsafe {
+                    KeyCode::Char('c') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
@@ -206,7 +221,7 @@ impl LayoutCommonTrait for TaskLayout {
             },
             InputMode::Add => {
                 match key_code.code {
-                    KeyCode::Enter => unsafe {
+                    KeyCode::Enter =>  {
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         if !self.is_adding_subtask {
@@ -229,7 +244,7 @@ impl LayoutCommonTrait for TaskLayout {
             },
             InputMode::Edit => {
                 match key_code.code {
-                    KeyCode::Enter => unsafe {
+                    KeyCode::Enter =>  {
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         gi.edit_sub_task(selected_task, self.layout_common.input.drain(..).collect());
@@ -244,7 +259,7 @@ impl LayoutCommonTrait for TaskLayout {
         }
     }
 
-    unsafe fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+     fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         TaskLayout::create_and_render_base_block(f, app, chunk);
         TaskLayout::create_and_render_item_list(f, app, chunk, frame_size);
     }
@@ -263,7 +278,7 @@ impl LayoutCommonTrait for TaskLayout {
         f.render_widget(tasks_block, chunk[1]);
     }
 
-    unsafe fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+     fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         let area = centered_rect(95, 90, chunk[1]);
 
         if app.data_manager.get_group_items().is_empty() {

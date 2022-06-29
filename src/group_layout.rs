@@ -100,7 +100,7 @@ impl LayoutCommonTrait for GroupLayout {
         }
     }
 
-    unsafe fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+     fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         GroupLayout::create_and_render_base_block(f, app, chunk);
         GroupLayout::create_and_render_item_list(f, app, chunk, frame_size);
     }
@@ -119,7 +119,7 @@ impl LayoutCommonTrait for GroupLayout {
         f.render_widget(groups_block, chunk[0]);
     }
 
-    unsafe fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
+     fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect) {
         let area = centered_rect(85, 85, chunk[0]);
         let mut items_list: Vec<ListItem> = Vec::new();
 
