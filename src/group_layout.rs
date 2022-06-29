@@ -3,8 +3,8 @@ use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::{Rect};
 use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, BorderType, Clear, ListItem, Paragraph};
-use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutState};
+use tui::widgets::{Block, Borders, BorderType, ListItem};
+use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutCommon, LayoutCommonTrait};
 
 use tui::{widgets::{List}};
 
@@ -13,44 +13,45 @@ use crate::data_manager::GroupItem;
 use crate::enums::InputMode;
 
 pub struct GroupLayout {
-    input_mode: InputMode,
-    input: String,
-    cursor_pos: usize
+    pub(crate) layout_common: LayoutCommon
 }
 
 impl GroupLayout {
     pub fn new() -> GroupLayout {
         GroupLayout {
-            input_mode: InputMode::Navigate,
-            input: String::new(),
-            cursor_pos: 0
+            layout_common: LayoutCommon::new()
         }
     }
 }
 
-impl LayoutState for GroupLayout {
 
-    fn is_in_edit_mode(&self) -> bool {
-        return self.input_mode == InputMode::Add || self.input_mode == InputMode::Edit;
-    }
+
+
+
+
+impl LayoutCommonTrait for GroupLayout {
 
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent) {
-        match self.input_mode {
+        match self.layout_common.input_mode {
             InputMode::Navigate => {
                 match key_code.code {
                     KeyCode::Char('a') => {
-                        self.input_mode = InputMode::Add;
-                        self.input = String::new();
-                        self.cursor_pos = self.input.width();
+                        self.layout_common.input_mode = InputMode::Add;
+                        self.layout_common.input = String::new();
+                        self.layout_common.cursor_pos = self.layout_common.input.width();
+
+                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
                     KeyCode::Esc => {
-                        if self.input_mode != InputMode::Navigate { return; }
-                        self.input_mode = InputMode::Navigate;
+                        if self.layout_common.input_mode != InputMode::Navigate { return; }
+                        self.layout_common.input_mode = InputMode::Navigate;
                     },
                     KeyCode::Char('e') => {
-                        self.input_mode = InputMode::Edit;
-                        self.input = data_manager.get_group(data_manager.selected_group).name.clone();
-                        self.cursor_pos = self.input.width();
+                        self.layout_common.input_mode = InputMode::Edit;
+                        self.layout_common.input = data_manager.get_group(data_manager.selected_group).name.clone();
+                        self.layout_common.cursor_pos = self.layout_common.input.width();
+
+                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
                     KeyCode::Char('d') => {
                         data_manager.delete_group_item(data_manager.selected_group);
@@ -74,100 +75,26 @@ impl LayoutState for GroupLayout {
                 match key_code.code {
                     KeyCode::Enter => {
                         let mut gi = GroupItem::new(data_manager);
-                        gi.name = self.input.drain(..).collect();
+                        gi.name = self.layout_common.input.drain(..).collect();
                         data_manager.add_group_item(gi);
-                        self.input_mode = InputMode::Navigate;
+                        self.layout_common.input_mode = InputMode::Navigate;
                         data_manager.save_state();
                     },
-                    KeyCode::Char(c) => {
-                        if self.cursor_pos == self.input.width() {
-                            self.input.push(c);
-                        } else {
-                            self.input.insert(self.cursor_pos, c);
-                        }
-                        self.cursor_pos += 1;
-                    },
-                    KeyCode::Backspace => {
-                        if self.cursor_pos > 0 {
-                            if self.cursor_pos == self.input.width() {
-                                self.input.pop();
-                            } else {
-                                self.input.remove(self.cursor_pos - 1);
-                            }
-                            self.cursor_pos -= 1;
-                        }
-                    },
-                    KeyCode::Delete => {
-                        if self.cursor_pos > 0 {
-                            if self.cursor_pos == self.input.width() {
-                                return;
-                            }
-                            self.input.remove(self.cursor_pos);
-                        }
-                    },
-                    KeyCode::Left => {
-                        if self.cursor_pos > 0 {
-                            self.cursor_pos -= 1;
-                        }
-                    },
-                    KeyCode::Right => {
-                        if self.cursor_pos < self.input.width() {
-                            self.cursor_pos += 1;
-                        }
-                    },
-                    KeyCode::Esc => {
-                        self.input_mode = InputMode::Navigate;
-                    },
-                    _ => {}
+                    _ => {
+                        <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
+                    }
                 }
             },
             InputMode::Edit => {
                 match key_code.code {
                     KeyCode::Enter => {
-                        data_manager.edit_group_item(data_manager.selected_group, self.input.drain(..).collect());
-                        self.input_mode = InputMode::Navigate;
+                        data_manager.edit_group_item(data_manager.selected_group, self.layout_common.input.drain(..).collect());
+                        self.layout_common.input_mode = InputMode::Navigate;
                         data_manager.save_state();
                     },
-                    KeyCode::Char(c) => {
-                        if self.cursor_pos == self.input.width() {
-                            self.input.push(c);
-                        } else {
-                            self.input.insert(self.cursor_pos, c);
-                        }
-                        self.cursor_pos += 1;
-                    },
-                    KeyCode::Backspace => {
-                        if self.cursor_pos > 0 {
-                            if self.cursor_pos == self.input.width() {
-                                self.input.pop();
-                            } else {
-                                self.input.remove(self.cursor_pos - 1);
-                            }
-                            self.cursor_pos -= 1;
-                        }
-                    },
-                    KeyCode::Delete => {
-                        if self.cursor_pos > 0 {
-                            if self.cursor_pos == self.input.width() {
-                                return;
-                            }
-                            self.input.remove(self.cursor_pos);
-                        }
-                    },
-                    KeyCode::Left => {
-                        if self.cursor_pos > 0 {
-                            self.cursor_pos -= 1;
-                        }
-                    },
-                    KeyCode::Right => {
-                        if self.cursor_pos < self.input.width() {
-                            self.cursor_pos += 1;
-                        }
-                    },
-                    KeyCode::Esc => {
-                        self.input_mode = InputMode::Navigate;
-                    },
-                    _ => {}
+                    _ => {
+                        <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
+                    }
                 }
             }
         }
@@ -230,32 +157,8 @@ impl LayoutState for GroupLayout {
     }
 
     fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
-        if app.group_layout.is_in_edit_mode() {
-            let title : String = if app.group_layout.input_mode == InputMode::Add { "Add group".to_string() } else { "Edit group".to_string() };
-            let options_block = Block::default().title(title).borders(Borders::ALL);
-            let area = centered_rect(40, 10, chunk[1]);
-
-            let input = Paragraph::new(app.group_layout.input.as_ref())
-                .style( if app.group_layout.is_in_edit_mode() {
-                            Style::default().add_modifier(Modifier::BOLD)
-                        } else {
-                            Style::default()
-                        })
-                .block(options_block);
-
-            f.render_widget(Clear, area);
-            f.render_widget(input, area);
-
-
-            if app.group_layout.is_in_edit_mode() {
-                f.set_cursor(
-                    // Put cursor past the end of the input text
-                    area.x +  app.group_layout.cursor_pos as u16 + 1,
-                    // Move one line down, from the border to the input line
-                    area.y + 1,
-                )
-            }
-        }
+        let title : String = if app.group_layout.layout_common.input_mode == InputMode::Add { "Add group".to_string() } else { "Edit group".to_string() };
+        <GroupLayout as LayoutCommonTrait>::render_common_input_mode(f, &mut app.group_layout.layout_common, title.as_str(), chunk);
     }
 }
 

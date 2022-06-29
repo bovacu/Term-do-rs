@@ -1,0 +1,131 @@
+{
+  "groups": [
+    {
+      "id": 0,
+      "name": "Term-do todo",
+      "tasks": [
+        {
+          "id": 0,
+          "done": false,
+          "name": "Input",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": [
+            {
+              "id": 1,
+              "done": true,
+              "name": "Edit existing task",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 2,
+              "done": true,
+              "name": "Edit existing group",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 3,
+              "done": true,
+              "name": "Fix left and right while typing",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 4,
+              "done": false,
+              "name": "Fix delete a task selectes task 0 always",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 5,
+              "done": true,
+              "name": "Fix add a new sub-task modifies all the current sub-tasks values",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            },
+            {
+              "id": 6,
+              "done": false,
+              "name": "Delete button doesn't work with the first element",
+              "indentation": 1,
+              "parent": 0,
+              "tasks": []
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "done": false,
+          "name": "Config",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": [
+            {
+              "id": 8,
+              "done": false,
+              "name": "Let the user configure the look of the app",
+              "indentation": 1,
+              "parent": 3,
+              "tasks": []
+            },
+            {
+              "id": 9,
+              "done": true,
+              "name": "Create data/data.json if not found",
+              "indentation": 1,
+              "parent": 6,
+              "tasks": []
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "done": true,
+          "name": "Fix rendering problem on the group layout",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        },
+        {
+          "id": 11,
+          "done": true,
+          "name": "Fix problem of Add task/group text too long",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        },
+        {
+          "id": 12,
+          "done": false,
+          "name": "Add controls info view",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        },
+        {
+          "id": 13,
+          "done": false,
+          "name": "Make branches look good with any kind of indentation",
+          "indentation": 0,
+          "parent": -1,
+          "tasks": []
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "GDE",
+      "tasks": []
+    }
+  ],
+  "selected_group": 0,
+  "selected_task": 0
+}

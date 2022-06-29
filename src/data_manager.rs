@@ -1,7 +1,46 @@
 use std::fs;
+use std::fs::File;
 use std::ptr::null_mut;
 
 use serde::{Deserialize, Serialize};
+use crate::enums::InputMode;
+
+use unicode_width::UnicodeWidthStr;
+
+pub struct LayoutCommon {
+    pub(crate) input_mode: InputMode,
+    pub(crate) input: String,
+    pub(crate) cursor_pos: usize,
+    pub(crate) starting_rendering_input_point: usize,
+    pub(crate) max_string_width: usize
+}
+
+impl LayoutCommon {
+    pub fn new() -> LayoutCommon {
+        LayoutCommon {
+            input_mode: InputMode::Navigate,
+            input: String::new(),
+            cursor_pos: 0,
+            starting_rendering_input_point: 0,
+            max_string_width: 0
+        }
+    }
+
+    pub fn recalculate_input_string_starting_point(layout_common: &mut LayoutCommon) {
+        if layout_common.input.width() > layout_common.max_string_width {
+            layout_common.starting_rendering_input_point = layout_common.input.width() - layout_common.max_string_width;
+        } else {
+            layout_common.starting_rendering_input_point = 0;
+        }
+    }
+
+    pub fn is_in_edit_mode(&self) -> bool {
+        return self.input_mode == InputMode::Add || self.input_mode == InputMode::Edit;
+    }
+}
+
+
+
 
 
 #[derive(Serialize, Deserialize)]
@@ -40,6 +79,10 @@ impl TaskItem {
         return completed;
     }
 }
+
+
+
+
 
 #[derive(Serialize, Deserialize)]
 pub struct GroupItem {
@@ -206,6 +249,10 @@ impl GroupItem {
 
 }
 
+
+
+
+
 #[derive(Serialize, Deserialize)]
 pub struct DataManager {
     groups: Vec<GroupItem>,
@@ -247,14 +294,24 @@ impl DataManager {
     }
 
     pub fn load_state(&mut self) {
-        let file = fs::read_to_string("src/data/data.json").expect("Couldn't open file");
-        let full_json : DataManager = serde_json::from_str(&file).unwrap();
-        self.groups = full_json.groups;
+        let read_file = fs::read_to_string("data/data.json");
+        match read_file {
+            Err(_error) => {
+                fs::create_dir("data").expect("Couldn't create dir 'data'");
+                File::create("data/data.json").expect("Couldn't create file data/data.json");
+                let base_data_manager = DataManager::new();
+                let full_json = serde_json::to_string_pretty(&base_data_manager).expect("Couldn't serialized");
+                fs::write("data/data.json", full_json).expect("Couldn't write to data file");
+            },
+            Ok(file) => {
+                let full_json : DataManager = serde_json::from_str(&file).unwrap();
+                self.groups = full_json.groups;
+            }
+        }
     }
 
     pub fn save_state(&mut self) {
         let full_json = serde_json::to_string_pretty(self).expect("Couldn't serialized");
-        fs::write("src/data/data.json", full_json).expect("Couldn't write to data file");
-
+        fs::write("data/data.json", full_json).expect("Couldn't write to data file");
     }
 }
