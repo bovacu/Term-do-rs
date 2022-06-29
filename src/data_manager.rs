@@ -42,14 +42,14 @@ impl LayoutCommon {
 
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TaskItem {
     pub(crate) id: usize,
     pub(crate) done: bool,
     pub(crate) name: String,
     pub(crate) indentation: usize,
     pub(crate) parent: isize,
-    tasks: Vec<TaskItem>
+    pub(crate) tasks: Vec<TaskItem>
 }
 
 impl TaskItem {
@@ -101,10 +101,6 @@ impl GroupItem {
 
     pub fn get_tasks(&self) -> &Vec<TaskItem> {
         return &self.tasks;
-    }
-
-    pub fn get_tasks_mut(&mut self) -> &mut Vec<TaskItem> {
-        return &mut self.tasks;
     }
 
     pub fn add_task(&mut self, task_name: String) {
@@ -187,26 +183,17 @@ impl GroupItem {
         }
     }
 
-    pub fn find_task(task_id: usize, tasks: &mut [TaskItem]) -> Option<(&mut TaskItem, isize)> {
-        tasks
-            .iter_mut()
-            .enumerate()
-            .find(|(_, task)| task.id == task_id)
-            .map(|(i, task)| (task, i as isize))
-    }
 
-    pub fn find_task_read_only(task_id: usize, tasks: &[TaskItem]) -> Option<(&TaskItem, isize)> {
-        tasks
-            .iter()
-            .enumerate()
-            .find(|(_, task)| task.id == task_id)
-            .map(|(i, task)| (task, i as isize))
-    }
 
     pub fn get_task_recursive(task_id: usize, tasks: &mut [TaskItem], ) -> Result<(&mut TaskItem, isize), bool> {
-        if let Some(res) = GroupItem::find_task(task_id, unsafe { &mut *(tasks as *mut _) }) {
-            return Ok(res);
+        for i in 0..tasks.len() {
+            let task = tasks[i].id;
+            if task == task_id {
+                let result = (&mut tasks[i], i as isize);
+                return Ok(result);
+            }
         }
+
         for task in tasks {
             if let Ok(res) = GroupItem::get_task_recursive(task_id, &mut task.tasks) {
                 return Ok(res);
@@ -217,9 +204,14 @@ impl GroupItem {
     }
 
     pub fn get_task_recursive_read_only(task_id: usize, tasks: &Vec<TaskItem>) -> Result<(&TaskItem, isize), bool> {
-        if let Some(res) = GroupItem::find_task_read_only(task_id, tasks) {
-            return Ok(res);
+        for i in 0..tasks.len() {
+            let task = tasks[i].id;
+            if task == task_id {
+                let result = (&tasks[i], i as isize);
+                return Ok(result);
+            }
         }
+
         for task in tasks {
             if let Ok(res) = GroupItem::get_task_recursive_read_only(task_id, &task.tasks) {
                 return Ok(res);

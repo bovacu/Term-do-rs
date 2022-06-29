@@ -163,16 +163,19 @@ impl LayoutCommonTrait for TaskLayout {
                     },
                     KeyCode::Char('d') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let parent_of_deleted : isize;
                         let task_id : usize;
                         let task_pos : isize;
+                        let task_ro : (TaskItem, isize);
 
                         {
                             let gi_ro = data_manager.get_group_read_only(selected_group);
                             let tasks = gi_ro.get_tasks();
                             let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
+                            task_ro = (task.0.clone(), task.1);
                             task_id = task.0.id;
                             task_pos = task.1;
                             parent_of_deleted = task.0.parent;
@@ -180,15 +183,17 @@ impl LayoutCommonTrait for TaskLayout {
 
                         {
                             let gi = data_manager.get_group(selected_group);
-                            let task_inner = TaskItem::new("".to_string(), task_id, parent_of_deleted);
-                            gi.remove_task((&task_inner, task_pos));
+                            gi.remove_task((&task_ro.0, task_ro.1));
 
                             if parent_of_deleted != -1 {
                                 gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
                             }
+
+                            if selected_task == gi.get_tasks_and_subtasks_count().0 && selected_task > 0 {
+                                data_manager.selected_task -= 1;
+                            }
                         }
 
-                        // data_manager.selected_task = 0;
                         data_manager.save_state();
                     },
                     KeyCode::Esc => {
