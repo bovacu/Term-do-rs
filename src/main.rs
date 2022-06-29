@@ -112,7 +112,9 @@ trait LayoutCommonTrait {
     }
 
     fn delete_key_input_mode(layout_common: &mut LayoutCommon) {
-        if layout_common.cursor_pos > 0 {
+        // This is separated as the compiler tells me usize >= 0 is a useless comparison, I know ma' bro
+        // but I still need to check if it is equal to 0
+        if layout_common.cursor_pos == 0 || layout_common.cursor_pos > 0 {
             if layout_common.cursor_pos == layout_common.input.width() {
                 return;
             }

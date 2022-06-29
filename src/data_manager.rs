@@ -175,6 +175,21 @@ impl GroupItem {
         }
     }
 
+    pub unsafe fn update_parents_to_check_if_all_completed(&mut self, task_id: usize) {
+        let parent_task = GroupItem::get_task_recursive(task_id, &mut self.tasks);
+        let mut all_done = true;
+        all_done &= (*parent_task.0).are_all_sub_tasks_done((*parent_task.0).get_tasks());
+        (*parent_task.0).done = all_done;
+        let mut top_parent = (*parent_task.0).parent;
+
+        while top_parent != -1 {
+            let top_parent_task = GroupItem::get_task_recursive(top_parent as usize, &mut self.tasks);
+            all_done &= (*top_parent_task.0).are_all_sub_tasks_done((*top_parent_task.0).get_tasks());
+            (*top_parent_task.0).done = all_done;
+            top_parent = (*top_parent_task.0).parent;
+        }
+    }
+
     fn get_task_recursive(task_id: usize, tasks: &mut Vec<Box<TaskItem>>) -> (*mut Box<TaskItem>, isize) {
         for i in 0..tasks.len() {
             let task = tasks[i].id;

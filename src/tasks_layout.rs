@@ -72,10 +72,10 @@ impl TaskLayout {
                 let mut repeated = String::new();
 
                 for i in 0..tasks[i].indentation - 1 {
-                    if amount_of_fucking_vertical_sticks[&i] == 1 {
-                        repeated = repeated.add("║    ");
-                    } else {
+                    if amount_of_fucking_vertical_sticks.contains_key(&i) && amount_of_fucking_vertical_sticks[&i] == 0 {
                         repeated = repeated.add("     ");
+                    } else {
+                        repeated = repeated.add("║    ");
                     }
                 }
 
@@ -170,11 +170,10 @@ impl LayoutCommonTrait for TaskLayout {
                         gi.remove_task(selected_task);
 
                         if parent_of_deleted != -1 {
-                            let gi = data_manager.get_group(data_manager.selected_group);
-                            gi.set_task_and_subtasks_done_or_undone(parent_of_deleted as usize, None);
+                            gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
                         }
 
-                        data_manager.selected_task = 0;
+                        // data_manager.selected_task = 0;
                         data_manager.save_state();
                     },
                     KeyCode::Esc => {
