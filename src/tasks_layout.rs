@@ -16,7 +16,8 @@ use crate::enums::InputMode;
 pub struct TaskLayout {
     pub(crate) layout_common: LayoutCommon,
     is_adding_subtask: bool,
-    folded_state: HashMap<usize, Vec<usize>>
+    folded_state: HashMap<usize, Vec<usize>>,
+    width_of_chunk: usize
 }
 
 struct ParentInfo {
@@ -29,11 +30,12 @@ impl TaskLayout {
         TaskLayout {
             layout_common: LayoutCommon::new(),
             is_adding_subtask: false,
-            folded_state: HashMap::new()
+            folded_state: HashMap::new(),
+            width_of_chunk: 0
         }
     }
 
-    pub  fn recursive_sub_tasks<'a>(data_manager: &'a DataManager, tasks: &'a Vec<TaskItem>, frame_size: &Rect) -> Vec<ListItem<'a>> {
+    pub  fn recursive_sub_tasks<'a>(&self, data_manager: &'a DataManager, tasks: &'a Vec<TaskItem>, frame_size: &Rect) -> Vec<ListItem<'a>> {
         let mut item_list : Vec<ListItem> = Vec::new();
         let height = ListItem::new("Hello").style(Style::default()).height();
         let max_lines : usize = (frame_size.height as usize / (2 * height)) as usize;
@@ -77,6 +79,7 @@ impl TaskLayout {
                 }
 
                 let mut repeated = String::new();
+                let mut indentation_string : String;
 
                 let parent_folded = amount_of_fucking_vertical_sticks.iter().any(|e| e.1.is_folded);
 
@@ -89,14 +92,20 @@ impl TaskLayout {
                         }
                     }
 
+                    indentation_string = repeated.clone();
+
                     repeated = repeated.add("╚═══ ").add(iconed_line.as_str());
+
                     indented_line.push_str(repeated.as_str());
+
                     let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
                     indented_line.push_str(sub_tasks_string.as_str());
+
+                    indented_line = TaskLayout::break_line_if_needed(self, indented_line, &indentation_string);
                 }
             } else {
                 let mut folded = false;
-                if tasks[i].parent != -1 {
+                if tasks[i].parent >= 0 {
                     let selected_group = data_manager.selected_group;
                     let gi = data_manager.get_group_read_only(selected_group);
                     let top_parent_task = GroupItem::get_task_recursive_read_only(tasks[i].parent as usize, gi.get_tasks()).unwrap();
@@ -105,9 +114,12 @@ impl TaskLayout {
 
                 if !folded {
                     indented_line = std::iter::repeat("╚═══ ").take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
-                    let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
-                    indented_line.push_str(sub_tasks_string.as_str());
                 }
+
+                let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
+                indented_line.push_str(sub_tasks_string.as_str());
+
+                // indented_line = TaskLayout::break_line_if_needed(self, indented_line, indentation_string);
             }
 
             if tasks[i].id == data_manager.selected_task {
@@ -118,12 +130,34 @@ impl TaskLayout {
             }
 
             if !tasks[i].get_tasks().is_empty() {
-                let mut new_task_items = TaskLayout::recursive_sub_tasks(data_manager, tasks[i].get_tasks(), frame_size);
+                let mut new_task_items = TaskLayout::recursive_sub_tasks(self, data_manager, tasks[i].get_tasks(), frame_size);
                 item_list.append(&mut new_task_items);
             }
         }
 
         return item_list;
+    }
+
+    fn break_line_if_needed(&self, line: String, indentation: &str) -> String {
+        if self.width_of_chunk == 0 {
+            return line;
+        }
+        let number_of_breaks = line.len() / self.width_of_chunk;
+        if number_of_breaks == 0 {
+            return line;
+        }
+
+        let mut broke_line = String::new();
+
+        for i in 0..number_of_breaks {
+            let (left, right) = line.split_at(self.width_of_chunk);
+            broke_line.push_str(left);
+            broke_line.push('\n');
+            broke_line.push_str(indentation);
+            broke_line.push_str(right);
+        }
+
+        return broke_line;
     }
 
     fn sub_tasks_string(data_manager: &DataManager, tasks: &Vec<TaskItem>) -> String {
@@ -249,6 +283,8 @@ impl LayoutCommonTrait for TaskLayout {
                         } else {
                             self.folded_state.remove(&selected_task);
                         }
+
+                        data_manager.save_state();
                     },
                     KeyCode::Up => {
                         if data_manager.get_group_items().is_empty() { return; }
@@ -351,7 +387,7 @@ impl LayoutCommonTrait for TaskLayout {
         }
 
         let tasks = app.data_manager.get_group_items()[ app.data_manager.selected_group].get_tasks();
-        let items_list = TaskLayout::recursive_sub_tasks(&app.data_manager, tasks, frame_size);
+        let items_list = TaskLayout::recursive_sub_tasks(&app.task_layout, &app.data_manager, tasks, frame_size);
 
         let items = List::new(items_list)
             .block(Block::default().borders(Borders::NONE));
@@ -361,6 +397,7 @@ impl LayoutCommonTrait for TaskLayout {
 
     fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
         let title : String = if app.task_layout.layout_common.input_mode == InputMode::Add {  if app.task_layout.is_adding_subtask { "Add subtask".to_string() } else { "Add task".to_string() } } else { "Edit task".to_string() };
+        app.task_layout.width_of_chunk = chunk[1].width as usize;
         <TaskLayout as LayoutCommonTrait>::render_common_input_mode(f, &mut app.task_layout.layout_common, title.as_str(), chunk);
     }
 }

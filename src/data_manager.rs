@@ -141,7 +141,8 @@ impl GroupItem {
         let new_id = new_task.id;
         parent_task.0.tasks.push(new_task);
 
-        GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut self.tasks);
+        GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut self.tasks, false);
+        GroupItem::recalculate_parent_tasks_ids_on_add(0, &mut self.tasks);
 
         return new_id;
     }
@@ -238,14 +239,23 @@ impl GroupItem {
         }
     }
 
-    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<TaskItem>) {
+    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<TaskItem>, mut found: bool) {
         for i in 0..tasks.len() {
             if tasks[i].id >= new_id  {
                 tasks[i].id += 1;
             }
 
             if tasks[i].id != parent_id {
-                GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut tasks[i].tasks);
+                GroupItem::recalculate_tasks_ids_on_add(parent_id, new_id, &mut tasks[i].tasks, found);
+            }
+        }
+    }
+
+    fn recalculate_parent_tasks_ids_on_add(parent_id: usize, tasks: &mut Vec<TaskItem>) {
+        for i in 0..tasks.len() {
+            GroupItem::recalculate_parent_tasks_ids_on_add(tasks[i].id, &mut tasks[i].tasks);
+            if tasks[i].parent != -1 {
+                tasks[i].parent = parent_id as isize;
             }
         }
     }
