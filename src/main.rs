@@ -222,9 +222,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             } else if key.code == KeyCode::Right && !app.is_in_edit_mode() {
                 app.update_state(FocusedLayout::TasksLayout);
             } else if key.code == KeyCode::Char('u') {
-                // app.data_manager.load_undo();
+                app.data_manager.load_undo();
+                app.data_manager.save_state();
             } else if key.code == KeyCode::Char('r') {
                 // app.data_manager.load_redo();
+                // app.data_manager.save_state();
             }
 
             match app.focused_layout {

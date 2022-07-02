@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::fs::File;
 
@@ -203,8 +203,6 @@ impl GroupItem {
         }
     }
 
-
-
     pub fn get_task_recursive(task_id: usize, tasks: &mut [TaskItem], ) -> Result<(&mut TaskItem, isize), bool> {
         for i in 0..tasks.len() {
             let task = tasks[i].id;
@@ -240,6 +238,9 @@ impl GroupItem {
 
         Err(true)
     }
+
+
+
 
     fn set_task_completed_recursive(completed: bool, tasks: &mut Vec<TaskItem>) {
         for i in 0..tasks.len() {
@@ -312,9 +313,15 @@ impl GroupItem {
 #[derive(Serialize, Deserialize)]
 pub struct DataManager {
     groups: Vec<GroupItem>,
-    pub folded_state: HashMap<usize, HashSet<usize>>,
     pub selected_group: usize,
-    pub selected_task: usize
+    pub selected_task: usize,
+
+    #[serde(skip)]
+    pub folded_state: HashMap<usize, HashSet<usize>>,
+    #[serde(skip)]
+    undo_stack: VecDeque<String>,
+    #[serde(skip)]
+    redo_stack: VecDeque<String>
 }
 
 impl DataManager {
@@ -324,6 +331,8 @@ impl DataManager {
             selected_group: 0,
             selected_task: 0,
             folded_state: HashMap::new(),
+            undo_stack: VecDeque::new(),
+            redo_stack: VecDeque::new()
         }
     }
 
@@ -364,8 +373,6 @@ impl DataManager {
             Ok(file) => {
                 let full_json : DataManager = serde_json::from_str(&file).unwrap();
                 self.groups = full_json.groups;
-                self.folded_state.clear();
-
                 self.load_folding(self.groups[self.selected_group].id);
             }
         }
@@ -378,6 +385,48 @@ impl DataManager {
         }
         let full_json = serde_json::to_string_pretty(self).expect("Couldn't serialized");
         fs::write("data/data.json", full_json).expect("Couldn't write to data file");
+    }
+
+    pub fn load_undo(&mut self) {
+        if self.undo_stack.is_empty() {
+            return;
+        }
+
+        let popped_state = self.undo_stack.pop_front().unwrap();
+        let full_json : DataManager = serde_json::from_str(popped_state.as_str()).unwrap();
+        self.groups = full_json.groups;
+        self.selected_group = full_json.selected_group;
+        self.selected_task = full_json.selected_task;
+        self.load_folding(full_json.selected_group);
+
+        self.redo_stack.push_front(popped_state);
+    }
+
+    pub fn save_undo(&mut self) {
+        if self.undo_stack.len() > 20 {
+            self.undo_stack.pop_back();
+        }
+        self.undo_stack.push_front(serde_json::to_string_pretty(self).unwrap());
+        self.redo_stack.clear();
+    }
+
+    pub fn load_redo(&mut self) {
+        if self.redo_stack.is_empty() {
+            return;
+        }
+        let popped_state = self.redo_stack.pop_front().unwrap();
+
+        DataManager::save_undo(self);
+
+        let full_json : DataManager = serde_json::from_str(popped_state.as_str()).unwrap();
+        self.groups = full_json.groups;
+        self.selected_group = full_json.selected_group;
+        self.selected_task = full_json.selected_task;
+        self.load_folding(full_json.selected_group);
+
+        self.load_folding(self.groups[self.selected_group].id);
+
+        self.redo_stack.push_front(popped_state);
     }
 
     pub fn check_data_integrity(&self) -> bool {
@@ -394,37 +443,10 @@ impl DataManager {
         return integrity_ok;
     }
 
-    fn check_data_integrity_recursive(tasks: &Vec<TaskItem>, mut id: usize) -> (bool, usize) {
-        let mut ok = true;
-
-        for task in tasks {
-            if id != task.id {
-                ok &= false;
-            }
-
-            id += 1;
-
-            let (new_ok, new_id) = DataManager::check_data_integrity_recursive(&task.tasks, id);
-            id = new_id;
-            ok &= new_ok;
-        }
-
-        return (ok, id);
-    }
-
     pub fn load_folding(&mut self, group_id: usize) {
         self.folded_state.clear();
         let tasks = self.groups[group_id].tasks.clone();
         DataManager::load_folding_recursive(self, &tasks);
-    }
-
-    fn load_folding_recursive(&mut self, tasks: &Vec<TaskItem>) {
-        for task in tasks {
-            if task.folded {
-                DataManager::calculate_folded_hasmap(self, task.id);
-            }
-            DataManager::load_folding_recursive(self, &task.tasks);
-        }
     }
 
     pub fn calculate_folded_hasmap(&mut self, selected_task: usize) {
@@ -447,4 +469,36 @@ impl DataManager {
             self.folded_state.remove(&selected_task);
         }
     }
+
+
+
+
+    fn check_data_integrity_recursive(tasks: &Vec<TaskItem>, mut id: usize) -> (bool, usize) {
+        let mut ok = true;
+
+        for task in tasks {
+            if id != task.id {
+                ok &= false;
+            }
+
+            id += 1;
+
+            let (new_ok, new_id) = DataManager::check_data_integrity_recursive(&task.tasks, id);
+            id = new_id;
+            ok &= new_ok;
+        }
+
+        return (ok, id);
+    }
+
+    fn load_folding_recursive(&mut self, tasks: &Vec<TaskItem>) {
+        for task in tasks {
+            if task.folded {
+                DataManager::calculate_folded_hasmap(self, task.id);
+            }
+            DataManager::load_folding_recursive(self, &task.tasks);
+        }
+    }
+
+
 }

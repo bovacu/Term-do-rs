@@ -47,6 +47,10 @@ impl LayoutCommonTrait for GroupLayout {
                         self.layout_common.input_mode = InputMode::Navigate;
                     },
                     KeyCode::Char('e') => {
+                        if data_manager.get_group_items().is_empty() {
+                            return;
+                        }
+
                         self.layout_common.input_mode = InputMode::Edit;
                         self.layout_common.input = data_manager.get_group(data_manager.selected_group).name.clone();
                         self.layout_common.cursor_pos = self.layout_common.input.width();
@@ -54,17 +58,30 @@ impl LayoutCommonTrait for GroupLayout {
                         LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
                     KeyCode::Char('d') => {
+                        if data_manager.get_group_items().is_empty() {
+                            return;
+                        }
+
+                        data_manager.save_undo();
                         data_manager.delete_group_item(data_manager.selected_group);
                         data_manager.save_state();
                         data_manager.selected_group = 0;
                     },
                     KeyCode::Up => {
+                        if data_manager.get_group_items().is_empty() {
+                            return;
+                        }
+
                         if data_manager.selected_group > 0 {
                             data_manager.selected_group -= 1;
                             data_manager.load_folding(data_manager.selected_group);
                         }
                     },
                     KeyCode::Down => {
+                        if data_manager.get_group_items().is_empty() {
+                            return;
+                        }
+
                         if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
                             data_manager.selected_group += 1;
                             data_manager.load_folding(data_manager.selected_group);
@@ -76,6 +93,8 @@ impl LayoutCommonTrait for GroupLayout {
             InputMode::Add => {
                 match key_code.code {
                     KeyCode::Enter => {
+                        data_manager.save_undo();
+
                         let mut gi = GroupItem::new(data_manager);
                         gi.name = self.layout_common.input.drain(..).collect();
                         data_manager.add_group_item(gi);
@@ -90,6 +109,8 @@ impl LayoutCommonTrait for GroupLayout {
             InputMode::Edit => {
                 match key_code.code {
                     KeyCode::Enter => {
+                        data_manager.save_undo();
+
                         data_manager.edit_group_item(data_manager.selected_group, self.layout_common.input.drain(..).collect());
                         self.layout_common.input_mode = InputMode::Navigate;
                         data_manager.save_state();

@@ -192,6 +192,8 @@ impl LayoutCommonTrait for TaskLayout {
                     },
                     KeyCode::Char('A') => {
                         if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
                         self.layout_common.input_mode = InputMode::Add;
                         self.is_adding_subtask = true;
                         self.layout_common.input = String::new();
@@ -200,6 +202,9 @@ impl LayoutCommonTrait for TaskLayout {
                         LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
                     },
                     KeyCode::Char('e') =>  {
+                        if data_manager.get_group_items().is_empty() { return; }
+                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
                         self.layout_common.input_mode = InputMode::Edit;
                         self.is_adding_subtask = false;
 
@@ -216,6 +221,9 @@ impl LayoutCommonTrait for TaskLayout {
                     KeyCode::Char('d') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                        data_manager.save_undo();
+
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let parent_of_deleted : isize;
@@ -244,6 +252,7 @@ impl LayoutCommonTrait for TaskLayout {
                             data_manager.folded_state.remove(&data_manager.selected_task);
                         }
 
+                        data_manager.load_folding(data_manager.selected_group);
                         data_manager.save_state();
                     },
                     KeyCode::Esc => {
@@ -253,6 +262,9 @@ impl LayoutCommonTrait for TaskLayout {
                     KeyCode::Char('c') =>  {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                        data_manager.save_undo();
+
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         gi.set_task_and_subtasks_done_or_undone(selected_task, None);
@@ -262,6 +274,9 @@ impl LayoutCommonTrait for TaskLayout {
                     KeyCode::Char('f') => {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                        data_manager.save_undo();
+
 
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
@@ -275,6 +290,7 @@ impl LayoutCommonTrait for TaskLayout {
                     KeyCode::Up => {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
                         if data_manager.selected_task > 0 {
 
                             let mut biggest_group = 0;
@@ -318,6 +334,8 @@ impl LayoutCommonTrait for TaskLayout {
             InputMode::Add => {
                 match key_code.code {
                     KeyCode::Enter =>  {
+                        data_manager.save_undo();
+
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         if !self.is_adding_subtask {
@@ -341,6 +359,8 @@ impl LayoutCommonTrait for TaskLayout {
             InputMode::Edit => {
                 match key_code.code {
                     KeyCode::Enter =>  {
+                        data_manager.save_undo();
+
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
                         gi.edit_sub_task(selected_task, self.layout_common.input.drain(..).collect());
