@@ -61,11 +61,13 @@ impl LayoutCommonTrait for GroupLayout {
                     KeyCode::Up => {
                         if data_manager.selected_group > 0 {
                             data_manager.selected_group -= 1;
+                            data_manager.load_folding(data_manager.selected_group);
                         }
                     },
                     KeyCode::Down => {
                         if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
                             data_manager.selected_group += 1;
+                            data_manager.load_folding(data_manager.selected_group);
                         }
                     }
                     _ => {}

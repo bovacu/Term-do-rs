@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    app.data_manager.load_state(&mut app.task_layout);
+    app.data_manager.load_state();
     let res =  { run_app(&mut terminal, &mut app) };
 
     disable_raw_mode()?;
@@ -221,6 +221,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 app.data_manager.selected_task = 0;
             } else if key.code == KeyCode::Right && !app.is_in_edit_mode() {
                 app.update_state(FocusedLayout::TasksLayout);
+            } else if key.code == KeyCode::Char('u') {
+                // app.data_manager.load_undo();
+            } else if key.code == KeyCode::Char('r') {
+                // app.data_manager.load_redo();
             }
 
             match app.focused_layout {

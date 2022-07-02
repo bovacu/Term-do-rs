@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
 
@@ -5,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::enums::InputMode;
 
 use unicode_width::UnicodeWidthStr;
-use crate::TaskLayout;
 
 pub struct LayoutCommon {
     pub(crate) input_mode: InputMode,
@@ -312,6 +312,7 @@ impl GroupItem {
 #[derive(Serialize, Deserialize)]
 pub struct DataManager {
     groups: Vec<GroupItem>,
+    pub folded_state: HashMap<usize, HashSet<usize>>,
     pub selected_group: usize,
     pub selected_task: usize
 }
@@ -321,7 +322,8 @@ impl DataManager {
         DataManager {
             groups: Vec::new(),
             selected_group: 0,
-            selected_task: 0
+            selected_task: 0,
+            folded_state: HashMap::new(),
         }
     }
 
@@ -349,7 +351,7 @@ impl DataManager {
         return &self.groups[id];
     }
 
-    pub fn load_state(&mut self, task_layout: &mut TaskLayout) {
+    pub fn load_state(&mut self) {
         let read_file = fs::read_to_string("data/data.json");
         match read_file {
             Err(_error) => {
@@ -362,14 +364,9 @@ impl DataManager {
             Ok(file) => {
                 let full_json : DataManager = serde_json::from_str(&file).unwrap();
                 self.groups = full_json.groups;
+                self.folded_state.clear();
 
-                for group in &self.groups {
-                    if group.tasks.is_empty() {
-                        continue;
-                    }
-
-                    self.load_folding(&group.tasks, task_layout);
-                }
+                self.load_folding(self.groups[self.selected_group].id);
             }
         }
     }
@@ -415,12 +412,39 @@ impl DataManager {
         return (ok, id);
     }
 
-    fn load_folding(&self, tasks: &Vec<TaskItem>, task_layout: &mut TaskLayout) {
+    pub fn load_folding(&mut self, group_id: usize) {
+        self.folded_state.clear();
+        let tasks = self.groups[group_id].tasks.clone();
+        DataManager::load_folding_recursive(self, &tasks);
+    }
+
+    fn load_folding_recursive(&mut self, tasks: &Vec<TaskItem>) {
         for task in tasks {
             if task.folded {
-                task_layout.calculate_folded_hasmap(self, task.id);
+                DataManager::calculate_folded_hasmap(self, task.id);
             }
-            DataManager::load_folding(self, &task.tasks, task_layout);
+            DataManager::load_folding_recursive(self, &task.tasks);
+        }
+    }
+
+    pub fn calculate_folded_hasmap(&mut self, selected_task: usize) {
+        let selected_group = self.selected_group;
+        let gi = self.get_group_read_only(selected_group);
+        if gi.tasks.is_empty() {
+            return;
+        }
+
+        let task = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap();
+        if task.0.folded {
+            let elements_to_skip = gi.get_tasks_and_subtasks_count_specific(task.0.get_tasks()).0;
+
+            let mut folded_state_entry : HashSet<usize> = HashSet::new();
+            for i in 0..elements_to_skip {
+                folded_state_entry.insert(selected_task + i + 1);
+            }
+            self.folded_state.insert(selected_task, folded_state_entry);
+        } else {
+            self.folded_state.remove(&selected_task);
         }
     }
 }
