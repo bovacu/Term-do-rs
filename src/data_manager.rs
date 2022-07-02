@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::enums::InputMode;
 
 use unicode_width::UnicodeWidthStr;
+use crate::TaskLayout;
 
 pub struct LayoutCommon {
     pub(crate) input_mode: InputMode,
@@ -72,6 +73,10 @@ impl TaskItem {
 
     pub fn are_all_sub_tasks_done(&self, task: &Vec<TaskItem>) -> bool {
         let mut completed = true;
+        if self.tasks.is_empty() {
+            completed = self.done;
+        }
+
         for i in 0..task.len() {
             completed &= task[i].done;
             completed &= TaskItem::are_all_sub_tasks_done(self, &task[i].tasks);
@@ -81,6 +86,10 @@ impl TaskItem {
     }
 
     pub fn fold(&mut self) {
+        if self.tasks.is_empty() {
+            return;
+        }
+
         self.folded = !self.folded;
     }
 }
@@ -182,7 +191,7 @@ impl GroupItem {
     pub  fn update_parents_to_check_if_all_completed(&mut self, task_id: usize) {
         let parent_task = GroupItem::get_task_recursive(task_id, &mut self.tasks).unwrap();
         let mut all_done = true;
-        all_done &= parent_task.0.are_all_sub_tasks_done((*parent_task.0).get_tasks());
+        all_done &= parent_task.0.are_all_sub_tasks_done(parent_task.0.get_tasks());
         parent_task.0.done = all_done;
         let mut top_parent = parent_task.0.parent;
 
@@ -239,7 +248,7 @@ impl GroupItem {
         }
     }
 
-    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<TaskItem>, mut found: bool) {
+    fn recalculate_tasks_ids_on_add(parent_id: usize, new_id: usize, tasks: &mut Vec<TaskItem>, found: bool) {
         for i in 0..tasks.len() {
             if tasks[i].id >= new_id  {
                 tasks[i].id += 1;
@@ -340,7 +349,7 @@ impl DataManager {
         return &self.groups[id];
     }
 
-    pub fn load_state(&mut self) {
+    pub fn load_state(&mut self, task_layout: &mut TaskLayout) {
         let read_file = fs::read_to_string("data/data.json");
         match read_file {
             Err(_error) => {
@@ -353,12 +362,65 @@ impl DataManager {
             Ok(file) => {
                 let full_json : DataManager = serde_json::from_str(&file).unwrap();
                 self.groups = full_json.groups;
+
+                for group in &self.groups {
+                    if group.tasks.is_empty() {
+                        continue;
+                    }
+
+                    self.load_folding(&group.tasks, task_layout);
+                }
             }
         }
     }
 
     pub fn save_state(&mut self) {
+        if !DataManager::check_data_integrity(self) {
+            eprintln!("Data integrity has been compromised! No serialization is being applied...");
+            return;
+        }
         let full_json = serde_json::to_string_pretty(self).expect("Couldn't serialized");
         fs::write("data/data.json", full_json).expect("Couldn't write to data file");
+    }
+
+    pub fn check_data_integrity(&self) -> bool {
+        let mut integrity_ok = true;
+
+        for group in &self.groups {
+            if group.tasks.is_empty() {
+                continue;
+            }
+
+            integrity_ok &= DataManager::check_data_integrity_recursive(&group.tasks, 0).0;
+        }
+
+        return integrity_ok;
+    }
+
+    fn check_data_integrity_recursive(tasks: &Vec<TaskItem>, mut id: usize) -> (bool, usize) {
+        let mut ok = true;
+
+        for task in tasks {
+            if id != task.id {
+                ok &= false;
+            }
+
+            id += 1;
+
+            let (new_ok, new_id) = DataManager::check_data_integrity_recursive(&task.tasks, id);
+            id = new_id;
+            ok &= new_ok;
+        }
+
+        return (ok, id);
+    }
+
+    fn load_folding(&self, tasks: &Vec<TaskItem>, task_layout: &mut TaskLayout) {
+        for task in tasks {
+            if task.folded {
+                task_layout.calculate_folded_hasmap(self, task.id);
+            }
+            DataManager::load_folding(self, &task.tasks, task_layout);
+        }
     }
 }

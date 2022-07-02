@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new();
-    app.data_manager.load_state();
+    app.data_manager.load_state(&mut app.task_layout);
     let res =  { run_app(&mut terminal, &mut app) };
 
     disable_raw_mode()?;

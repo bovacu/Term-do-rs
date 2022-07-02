@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::ops::Add;
 use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
@@ -16,7 +16,7 @@ use crate::enums::InputMode;
 pub struct TaskLayout {
     pub(crate) layout_common: LayoutCommon,
     is_adding_subtask: bool,
-    folded_state: HashMap<usize, Vec<usize>>,
+    pub folded_state: HashMap<usize, HashSet<usize>>,
     width_of_chunk: usize
 }
 
@@ -79,7 +79,7 @@ impl TaskLayout {
                 }
 
                 let mut repeated = String::new();
-                let mut indentation_string : String;
+                let indentation_string : String;
 
                 let parent_folded = amount_of_fucking_vertical_sticks.iter().any(|e| e.1.is_folded);
 
@@ -114,12 +114,10 @@ impl TaskLayout {
 
                 if !folded {
                     indented_line = std::iter::repeat("╚═══ ").take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
+                    let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
+                    indented_line.push_str(sub_tasks_string.as_str());
+                    indented_line = TaskLayout::break_line_if_needed(self, indented_line, "     ");
                 }
-
-                let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
-                indented_line.push_str(sub_tasks_string.as_str());
-
-                // indented_line = TaskLayout::break_line_if_needed(self, indented_line, indentation_string);
             }
 
             if tasks[i].id == data_manager.selected_task {
@@ -149,7 +147,7 @@ impl TaskLayout {
 
         let mut broke_line = String::new();
 
-        for i in 0..number_of_breaks {
+        for _i in 0..number_of_breaks {
             let (left, right) = line.split_at(self.width_of_chunk);
             broke_line.push_str(left);
             broke_line.push('\n');
@@ -170,6 +168,24 @@ impl TaskLayout {
         }
 
         return format!(" ({}/{})", sub_tasks_count.1, sub_tasks_count.0);
+    }
+
+    pub fn calculate_folded_hasmap(&mut self, data_manager: &DataManager, selected_task: usize) {
+        let selected_group = data_manager.selected_group;
+        let gi = data_manager.get_group_read_only(selected_group);
+
+        let task = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap();
+        if task.0.folded {
+            let elements_to_skip = gi.get_tasks_and_subtasks_count_specific(task.0.get_tasks()).0;
+
+            let mut folded_state_entry : HashSet<usize> = HashSet::new();
+            for i in 0..elements_to_skip {
+                folded_state_entry.insert(selected_task + i + 1);
+            }
+            self.folded_state.insert(selected_task, folded_state_entry);
+        } else {
+            self.folded_state.remove(&selected_task);
+        }
     }
 }
 
@@ -192,6 +208,7 @@ impl LayoutCommonTrait for TaskLayout {
                         self.layout_common.cursor_pos = self.layout_common.input.width();
 
                         LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                        TaskLayout::calculate_folded_hasmap(self, data_manager, data_manager.selected_task);
                     },
                     KeyCode::Char('A') => {
                         if data_manager.get_group_items().is_empty() { return; }
@@ -269,20 +286,9 @@ impl LayoutCommonTrait for TaskLayout {
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
                         let gi = data_manager.get_group(selected_group);
+
                         TaskItem::fold(GroupItem::get_task_recursive(selected_task, &mut gi.get_tasks_mut()).unwrap().0);
-                        let task = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap();
-
-                        if task.0.folded {
-                            let elements_to_skip = gi.get_tasks_and_subtasks_count_specific(task.0.get_tasks()).0;
-
-                            let mut folded_state_entry : Vec<usize> = Vec::new();
-                            for i in 0..elements_to_skip {
-                                folded_state_entry.push(selected_task + i + 1);
-                            }
-                            self.folded_state.insert(selected_task, folded_state_entry);
-                        } else {
-                            self.folded_state.remove(&selected_task);
-                        }
+                        TaskLayout::calculate_folded_hasmap(self, data_manager, data_manager.selected_task);
 
                         data_manager.save_state();
                     },
@@ -290,26 +296,32 @@ impl LayoutCommonTrait for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.selected_task > 0 {
 
+                            let mut biggest_group = 0;
                             for (_, entry) in self.folded_state.iter() {
                                 let previous_task = data_manager.selected_task - 1;
-                                if entry.contains(&previous_task) {
-                                    data_manager.selected_task -= entry.len();
-                                    break;
+                                if entry.contains(&previous_task) && entry.len() > biggest_group {
+                                    biggest_group = entry.len();
                                 }
                             }
 
-                            data_manager.selected_task -= 1;
+                            data_manager.selected_task -= 1 + biggest_group;
                         }
                     },
                     KeyCode::Down => {
                         if data_manager.get_group_items().is_empty() { return; }
                         let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
-                        if data_manager.selected_task < tasks.0 - 1 {
+                        let selected_task = data_manager.selected_task;
+                        let gi = data_manager.get_group_read_only(data_manager.selected_group);
+                        let task = gi.get_tasks().last().unwrap();
+                        let is_last_and_folded = task.id == selected_task && task.folded;
 
+                        if data_manager.selected_task < tasks.0 - 1 && !is_last_and_folded {
                             for (_, entry) in self.folded_state.iter() {
                                 let next_task = data_manager.selected_task + 1;
                                 if entry.contains(&next_task) {
-                                    data_manager.selected_task += entry.len();
+                                    if data_manager.selected_task + entry.len() < tasks.0 - 1 {
+                                        data_manager.selected_task += entry.len();
+                                    }
                                     break;
                                 }
                             }
