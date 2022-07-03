@@ -371,7 +371,9 @@ impl DataManager {
             Ok(file) => {
                 let full_json : DataManager = serde_json::from_str(&file).unwrap();
                 self.groups = full_json.groups;
-                self.load_folding(self.groups[self.selected_group].id);
+                if !self.groups.is_empty() {
+                    self.load_folding(0);
+                }
             }
         }
     }

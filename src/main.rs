@@ -230,13 +230,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 app.data_manager.selected_task = 0;
             } else if key.code == KeyCode::Right && !app.is_in_edit_mode() {
                 app.update_state(FocusedLayout::TasksLayout);
-            } else if key.code == KeyCode::Char('u') {
+            } else if key.code == KeyCode::Char('u') && !app.is_in_edit_mode() {
                 app.data_manager.undo();
                 app.data_manager.save_state();
-            } else if key.code == KeyCode::Char('r') {
+            } else if key.code == KeyCode::Char('r') && !app.is_in_edit_mode() {
                 app.data_manager.redo();
                 app.data_manager.save_state();
-            } else if key.code == KeyCode::Char('?') {
+            } else if key.code == KeyCode::Char('?') && !app.is_in_edit_mode() {
                 if app.focused_layout == FocusedLayout::ControlsLayout {
                     app.update_state(FocusedLayout::GroupsLayout);
                 } else {
