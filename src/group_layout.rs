@@ -62,7 +62,7 @@ impl LayoutCommonTrait for GroupLayout {
                             return;
                         }
 
-                        data_manager.save_undo();
+                        data_manager.apply();
                         data_manager.delete_group_item(data_manager.selected_group);
                         data_manager.save_state();
                         data_manager.selected_group = 0;
@@ -93,7 +93,7 @@ impl LayoutCommonTrait for GroupLayout {
             InputMode::Add => {
                 match key_code.code {
                     KeyCode::Enter => {
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         let mut gi = GroupItem::new(data_manager);
                         gi.name = self.layout_common.input.drain(..).collect();
@@ -109,7 +109,7 @@ impl LayoutCommonTrait for GroupLayout {
             InputMode::Edit => {
                 match key_code.code {
                     KeyCode::Enter => {
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         data_manager.edit_group_item(data_manager.selected_group, self.layout_common.input.drain(..).collect());
                         self.layout_common.input_mode = InputMode::Navigate;

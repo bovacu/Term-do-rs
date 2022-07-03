@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::File;
 
@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::enums::InputMode;
 
 use unicode_width::UnicodeWidthStr;
+use crate::history::History;
 
 pub struct LayoutCommon {
     pub(crate) input_mode: InputMode,
@@ -319,9 +320,7 @@ pub struct DataManager {
     #[serde(skip)]
     pub folded_state: HashMap<usize, HashSet<usize>>,
     #[serde(skip)]
-    undo_stack: VecDeque<String>,
-    #[serde(skip)]
-    redo_stack: VecDeque<String>
+    history: History
 }
 
 impl DataManager {
@@ -331,8 +330,7 @@ impl DataManager {
             selected_group: 0,
             selected_task: 0,
             folded_state: HashMap::new(),
-            undo_stack: VecDeque::new(),
-            redo_stack: VecDeque::new()
+            history: History::new()
         }
     }
 
@@ -387,46 +385,30 @@ impl DataManager {
         fs::write("data/data.json", full_json).expect("Couldn't write to data file");
     }
 
-    pub fn load_undo(&mut self) {
-        if self.undo_stack.is_empty() {
-            return;
-        }
-
-        let popped_state = self.undo_stack.pop_front().unwrap();
-        let full_json : DataManager = serde_json::from_str(popped_state.as_str()).unwrap();
-        self.groups = full_json.groups;
-        self.selected_group = full_json.selected_group;
-        self.selected_task = full_json.selected_task;
-        self.load_folding(full_json.selected_group);
-
-        self.redo_stack.push_front(popped_state);
+    pub fn apply(&mut self) {
+        self.history.apply(serde_json::to_string_pretty(self).expect("Couldn't serialized"));
     }
 
-    pub fn save_undo(&mut self) {
-        if self.undo_stack.len() > 20 {
-            self.undo_stack.pop_back();
+    pub fn undo(&mut self) {
+        let undo = self.history.undo(serde_json::to_string_pretty(self).expect("Couldn't serialized"));
+        if undo.is_ok() {
+            let full_json : DataManager = serde_json::from_str(undo.unwrap().as_str()).unwrap();
+            self.groups = full_json.groups;
+            self.selected_group = full_json.selected_group;
+            self.selected_task = full_json.selected_task;
+            self.load_folding(full_json.selected_group);
         }
-        self.undo_stack.push_front(serde_json::to_string_pretty(self).unwrap());
-        self.redo_stack.clear();
     }
 
-    pub fn load_redo(&mut self) {
-        if self.redo_stack.is_empty() {
-            return;
+    pub fn redo(&mut self) {
+        let redo = self.history.redo(serde_json::to_string_pretty(self).expect("Couldn't serialized"));
+        if redo.is_ok() {
+            let full_json : DataManager = serde_json::from_str(redo.unwrap().as_str()).unwrap();
+            self.groups = full_json.groups;
+            self.selected_group = full_json.selected_group;
+            self.selected_task = full_json.selected_task;
+            self.load_folding(full_json.selected_group);
         }
-        let popped_state = self.redo_stack.pop_front().unwrap();
-
-        DataManager::save_undo(self);
-
-        let full_json : DataManager = serde_json::from_str(popped_state.as_str()).unwrap();
-        self.groups = full_json.groups;
-        self.selected_group = full_json.selected_group;
-        self.selected_task = full_json.selected_task;
-        self.load_folding(full_json.selected_group);
-
-        self.load_folding(self.groups[self.selected_group].id);
-
-        self.redo_stack.push_front(popped_state);
     }
 
     pub fn check_data_integrity(&self) -> bool {

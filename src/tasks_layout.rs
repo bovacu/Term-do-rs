@@ -144,13 +144,17 @@ impl TaskLayout {
         }
 
         let mut broke_line = String::new();
+        let mut to_split = line.as_str();
+
 
         for _i in 0..number_of_breaks {
-            let (left, right) = line.split_at(self.width_of_chunk);
+            let (left, right) = to_split.split_at(self.width_of_chunk);
             broke_line.push_str(left);
             broke_line.push('\n');
             broke_line.push_str(indentation);
+            broke_line.push_str("        ");
             broke_line.push_str(right);
+            to_split = right;
         }
 
         return broke_line;
@@ -222,7 +226,7 @@ impl LayoutCommonTrait for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         let selected_task = data_manager.selected_task;
                         let selected_group = data_manager.selected_group;
@@ -263,7 +267,7 @@ impl LayoutCommonTrait for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
@@ -275,7 +279,7 @@ impl LayoutCommonTrait for TaskLayout {
                         if data_manager.get_group_items().is_empty() { return; }
                         if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        data_manager.save_undo();
+                        data_manager.apply();
 
 
                         let selected_task = data_manager.selected_task;
@@ -334,7 +338,7 @@ impl LayoutCommonTrait for TaskLayout {
             InputMode::Add => {
                 match key_code.code {
                     KeyCode::Enter =>  {
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
@@ -359,7 +363,7 @@ impl LayoutCommonTrait for TaskLayout {
             InputMode::Edit => {
                 match key_code.code {
                     KeyCode::Enter =>  {
-                        data_manager.save_undo();
+                        data_manager.apply();
 
                         let selected_task = data_manager.selected_task;
                         let gi = data_manager.get_group(data_manager.selected_group);
