@@ -11,7 +11,9 @@ them if a task has subtasks.
 
 Controls are specified inside the application by pressing '?'.
 
-![](img/Screenshot from 2022-07-03 18-29-57.png)
+<div>
+<img src="img/screenshot.png" height="320" width="650" />
+</div>
 
 Configuration is coming in the version 0.6!
 
