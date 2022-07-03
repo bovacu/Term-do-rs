@@ -5,10 +5,10 @@ edition = "2021"
 description = "This is a small terminal tool for tracking tasks and also my first project! It is simple, but hope it is as helpful for other people as it is for me."
 readme = "README.md"
 repository = "https://github.com/bovacu/Term-do-rs"
-license = "GPL"
-keywords = ["task", "task list", "terminal"]
+license = "GPL-1.0-or-later"
+keywords = ["task", "task-list", "terminal"]
 categories = ["command-line-utilities", "development-tools"]
-documentation = ""
+documentation = "https://docs.rs/term_do"
 exclude = [
     ".idea/*",
 ]
