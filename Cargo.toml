@@ -1,6 +1,6 @@
 [package]
 name = "term_do"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "This is a small terminal tool for tracking tasks and also my first project! It is simple, but hope it is as helpful for other people as it is for me."
 readme = "README.md"
