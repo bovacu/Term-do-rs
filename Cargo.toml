@@ -9,6 +9,9 @@ license = "GPL"
 keywords = ["task", "task list", "terminal"]
 categories = ["command-line-utilities", "development-tools"]
 documentation = ""
+exclude = [
+    ".idea/*",
+]
 
 [dependencies]
 tui = "0.18"
