@@ -11,7 +11,7 @@ them if a task has subtasks.
 
 Controls are specified inside the application by pressing '?'.
 
-![](../../../Pictures/Screenshots/Screenshot from 2022-07-03 18-29-57.png)
+![](img/Screenshot from 2022-07-03 18-29-57.png)
 
 Configuration is coming in the version 0.6!
 
