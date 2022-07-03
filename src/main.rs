@@ -3,6 +3,7 @@ mod tasks_layout;
 mod group_layout;
 mod data_manager;
 mod history;
+mod controls_layout;
 
 use std::{error::Error, io};
 use tui::{
@@ -23,14 +24,15 @@ use crate::data_manager::{DataManager, LayoutCommon};
 use crate::enums::{FocusedLayout, InputMode};
 use crate::group_layout::GroupLayout;
 use crate::tasks_layout::{TaskLayout};
+use crate::controls_layout::ControlsLayout;
 
 use unicode_width::UnicodeWidthStr;
 
 trait LayoutCommonTrait {
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent);
-     fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
+    fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
-     fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
+    fn create_and_render_item_list<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>, frame_size: &Rect);
     fn create_and_render_edit_mode<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>);
 
     fn is_in_edit_mode(layout_common: &LayoutCommon) -> bool {
@@ -154,6 +156,7 @@ struct App {
     last_layout: FocusedLayout,
     group_layout: GroupLayout,
     task_layout: TaskLayout,
+    controls_layout: ControlsLayout,
     run: bool,
     data_manager: DataManager
 }
@@ -165,6 +168,7 @@ impl App {
             last_layout: FocusedLayout::None,
             group_layout: GroupLayout::new(),
             task_layout: TaskLayout::new(),
+            controls_layout: ControlsLayout::new(),
             run: true,
             data_manager: DataManager::new()
         }
@@ -214,8 +218,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         if let Event::Key(key) = event::read()? {
 
             if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-                if  !app.is_in_edit_mode() {
-                    return Ok(());
+                if app.focused_layout == FocusedLayout::ControlsLayout {
+                    app.update_state(FocusedLayout::GroupsLayout);
+                } else {
+                    if  !app.is_in_edit_mode() {
+                        return Ok(());
+                    }
                 }
             } else if key.code == KeyCode::Left && !app.is_in_edit_mode() {
                 app.update_state(FocusedLayout::GroupsLayout);
@@ -228,6 +236,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             } else if key.code == KeyCode::Char('r') {
                 app.data_manager.redo();
                 app.data_manager.save_state();
+            } else if key.code == KeyCode::Char('?') {
+                if app.focused_layout == FocusedLayout::ControlsLayout {
+                    app.update_state(FocusedLayout::GroupsLayout);
+                } else {
+                    app.update_state(FocusedLayout::ControlsLayout);
+                }
             }
 
             match app.focused_layout {
@@ -236,6 +250,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 },
                 FocusedLayout::TasksLayout => {
                     app.task_layout.handle_input(&mut app.data_manager,key);
+                },
+                FocusedLayout::ControlsLayout => {
+                    app.controls_layout.handle_input(&mut app.data_manager,key);
                 },
                 _ => {}
             }
@@ -255,7 +272,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let top_block = Block::default()
         .borders(Borders::ALL);
 
-    let title = Paragraph::new("Term-do 0.5").block(top_block).alignment(Alignment::Center);
+    let title = Paragraph::new("Term-do \n press ? to see controls").block(top_block).alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
     let lower_chunks = Layout::default()
@@ -263,11 +280,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .direction(Direction::Horizontal)
         .split(chunks[1]);
 
-    <GroupLayout as LayoutCommonTrait>::ui(f, app, &lower_chunks, &f.size());
-    <TaskLayout as LayoutCommonTrait>::ui(f, app, &lower_chunks, &f.size());
+    if app.focused_layout != FocusedLayout::ControlsLayout {
+        <GroupLayout as LayoutCommonTrait>::ui(f, app, &lower_chunks, &f.size());
+        <TaskLayout as LayoutCommonTrait>::ui(f, app, &lower_chunks, &f.size());
 
-    <GroupLayout as LayoutCommonTrait>::create_and_render_edit_mode(f, app, &lower_chunks);
-    <TaskLayout as LayoutCommonTrait>::create_and_render_edit_mode(f, app, &lower_chunks);
+        <GroupLayout as LayoutCommonTrait>::create_and_render_edit_mode(f, app, &lower_chunks);
+        <TaskLayout as LayoutCommonTrait>::create_and_render_edit_mode(f, app, &lower_chunks);
+    } else {
+        <ControlsLayout as LayoutCommonTrait>::ui(f, app, &chunks, &f.size());
+    }
 }
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`

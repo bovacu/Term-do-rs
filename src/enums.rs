@@ -2,7 +2,8 @@
 pub enum FocusedLayout {
     None,
     GroupsLayout,
-    TasksLayout
+    TasksLayout,
+    ControlsLayout
 }
 
 #[derive(Copy, Clone, PartialEq)]
