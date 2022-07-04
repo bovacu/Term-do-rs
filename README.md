@@ -1,6 +1,8 @@
 # Term-do
 This is a small terminal application for tracking tasks and also my first Rust project! This might not be the most complete and complex task application for terminal ever, but it does a perfect job!
 
+PRE-REQUISITES!! -> Font nerd installed or any other font that is able to render icons!! Otherwise, icons won't be rendered
+
 The app is divided in 2 main blocks, Blocks group and Tasks group.
 
 We can have as many Groups as we want and each group has its own set of tasks. Groups are
