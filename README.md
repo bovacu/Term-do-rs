@@ -19,4 +19,4 @@ Configuration is coming in the version 0.6!
 
 I've been using this app during the development of this app, and it is really useful for software development in general.
 
-Any error you find you can contact me, and I'll try to fix it as soon as possible!
+Any error you find you can contact me (vazquezborja@hotmail.es), and I'll try to fix it as soon as possible!
