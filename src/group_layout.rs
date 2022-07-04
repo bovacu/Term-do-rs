@@ -131,11 +131,10 @@ impl LayoutCommonTrait for GroupLayout {
     fn create_and_render_base_block<B: Backend>(f: &mut Frame<B>, app: &mut App, chunk: &Vec<Rect>) {
         let mut groups_block = Block::default()
             .title("Groups")
-            .borders(Borders::ALL)
-            .style(Style::default());
+            .borders(Borders::ALL).style(Style::default().fg(app.data_manager.config.get_color("group", "border_color")));
 
         if app.focused_layout == FocusedLayout::GroupsLayout {
-            groups_block = groups_block.style(Style::default().add_modifier(Modifier::BOLD))
+            groups_block = groups_block.style(Style::default().add_modifier(Modifier::BOLD).fg(app.data_manager.config.get_color("group", "border_color")))
                 .border_type(BorderType::Thick);
         }
 
@@ -157,15 +156,15 @@ impl LayoutCommonTrait for GroupLayout {
             line.push_str(group_name);
 
             if i == app.data_manager.selected_group {
-                line = "  ".to_string();
+                line = format!("{}{}", app.data_manager.config.group.get("icon").unwrap(), "  ").to_string();
                 line.push_str(group_name);
-                items_list.push(ListItem::new(line).style(Style::default().fg(Color::Cyan).remove_modifier(Modifier::BOLD)));
+                items_list.push(ListItem::new(line).style(Style::default().fg(app.data_manager.config.get_color("group", "selected_color")).remove_modifier(Modifier::BOLD)));
                 continue;
             }
 
-            line = "  ".to_string();
+            line = format!("{}{}", app.data_manager.config.group.get("icon").unwrap(), "  ").to_string();
             line.push_str(group_name);
-            items_list.push(ListItem::new(line).style(Style::default().remove_modifier(Modifier::BOLD)));
+            items_list.push(ListItem::new(line).style(Style::default().fg(app.data_manager.config.get_color("group", "non_selected_color")).remove_modifier(Modifier::BOLD)));
         }
 
         let items = List::new(items_list)

@@ -17,7 +17,7 @@ Controls are specified inside the application by pressing '?'.
 <img src="img/screenshot.png" height="320" width="650" />
 </div>
 
-Configuration is coming in the version 0.6!
+The configuration file for basic customization is alongside the executable, it is a file called settings.ini. It allows you to modify the colors of the text, the borders and the icons.
 
 I've been using this app during the development of this app, and it is really useful for software development in general.
 

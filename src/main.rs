@@ -4,6 +4,7 @@ mod group_layout;
 mod data_manager;
 mod history;
 mod controls_layout;
+mod config_manager;
 
 use std::{error::Error, io};
 use tui::{

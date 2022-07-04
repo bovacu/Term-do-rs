@@ -4,7 +4,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::Rect;
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Modifier, Style};
 use tui::widgets::{Block, Borders, BorderType, List, ListItem};
 use crate::{App, centered_rect, DataManager, FocusedLayout, LayoutCommon, LayoutCommonTrait};
 
@@ -47,10 +47,11 @@ impl TaskLayout {
             let mut default_style = Style::default().remove_modifier(Modifier::BOLD);
 
             if tasks[i].done {
-                iconed_line = "  ".to_string();
-                default_style = default_style.fg(Color::LightGreen);
+                iconed_line = format!("{}{}", data_manager.config.task.get("icon_completed").unwrap(), "  ").to_string();
+                default_style = default_style.fg(data_manager.config.get_color("task", "completed_color"));
             } else {
-                iconed_line = "  ".to_string();
+                default_style = default_style.fg(data_manager.config.get_color("task", "non_selected_color"));
+                iconed_line = format!("{}{}", data_manager.config.task.get("icon_uncompleted").unwrap(), "  ").to_string();
             }
 
             iconed_line.push_str(line);
@@ -86,13 +87,13 @@ impl TaskLayout {
                         if amount_of_fucking_vertical_sticks.contains_key(&i) && !amount_of_fucking_vertical_sticks[&i].needs_vertical_bar {
                             repeated = repeated.add("     ");
                         } else {
-                            repeated = repeated.add("║    ");
+                            repeated = repeated.add(format!("{}{}", data_manager.config.task.get("vertical_child_char_icon").unwrap(), "    ").as_str());
                         }
                     }
 
                     indentation_string = repeated.clone();
 
-                    repeated = repeated.add("╚═══ ").add(iconed_line.as_str());
+                    repeated = repeated.add(format!("{}{}{}", data_manager.config.task.get("turn_right_child_char_icon").unwrap(), std::iter::repeat(data_manager.config.task.get("horizontal_child_char_icon").unwrap()).take(3).collect::<String>(), " ").as_str()).add(iconed_line.as_str());
 
                     indented_line.push_str(repeated.as_str());
 
@@ -111,7 +112,8 @@ impl TaskLayout {
                 }
 
                 if !folded {
-                    indented_line = std::iter::repeat("╚═══ ").take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
+                    let l = format!("{}{}{}", data_manager.config.task.get("turn_right_child_char_icon").unwrap(), std::iter::repeat(data_manager.config.task.get("horizontal_child_char_icon").unwrap()).take(3).collect::<String>(), " ").to_string();
+                    indented_line = std::iter::repeat(l).take(tasks[i].indentation).collect::<String>().add(iconed_line.as_str());
                     let sub_tasks_string = TaskLayout::sub_tasks_string(data_manager, tasks[i].get_tasks());
                     indented_line.push_str(sub_tasks_string.as_str());
                     indented_line = TaskLayout::break_line_if_needed(self, indented_line, "     ");
@@ -119,7 +121,7 @@ impl TaskLayout {
             }
 
             if tasks[i].id == data_manager.selected_task {
-                default_style = default_style.fg(Color::Yellow);
+                default_style = default_style.fg(data_manager.config.get_color("task", "selected_color"));
                 item_list.push(ListItem::new(indented_line).style(default_style));
             } else {
                 item_list.push(ListItem::new(indented_line).style(default_style));
@@ -388,10 +390,10 @@ impl LayoutCommonTrait for TaskLayout {
         let mut tasks_block = Block::default()
             .title("Tasks")
             .borders(Borders::ALL)
-            .style(Style::default());
+            .style(Style::default().fg(app.data_manager.config.get_color("task", "border_color")));
 
         if app.focused_layout == FocusedLayout::TasksLayout {
-            tasks_block = tasks_block.style(Style::default().add_modifier(Modifier::BOLD))
+            tasks_block = tasks_block.style(Style::default().add_modifier(Modifier::BOLD).fg(app.data_manager.config.get_color("task", "border_color")))
                 .border_type(BorderType::Thick);
         }
 
@@ -409,7 +411,7 @@ impl LayoutCommonTrait for TaskLayout {
         let items_list = TaskLayout::recursive_sub_tasks(&app.task_layout, &app.data_manager, tasks, frame_size);
 
         let items = List::new(items_list)
-            .block(Block::default().borders(Borders::NONE));
+            .block(Block::default().borders(Borders::NONE)).style(Style::default());
 
         f.render_widget(items, area);
     }

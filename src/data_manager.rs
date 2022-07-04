@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::enums::InputMode;
 
 use unicode_width::UnicodeWidthStr;
+use crate::config_manager::ConfigManager;
 use crate::history::History;
 
 pub struct LayoutCommon {
@@ -320,7 +321,9 @@ pub struct DataManager {
     #[serde(skip)]
     pub folded_state: HashMap<usize, HashSet<usize>>,
     #[serde(skip)]
-    history: History
+    history: History,
+    #[serde(skip)]
+    pub config: ConfigManager
 }
 
 impl DataManager {
@@ -330,7 +333,8 @@ impl DataManager {
             selected_group: 0,
             selected_task: 0,
             folded_state: HashMap::new(),
-            history: History::new()
+            history: History::new(),
+            config: ConfigManager::new()
         }
     }
 
