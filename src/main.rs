@@ -231,10 +231,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 app.data_manager.selected_task = 0;
             } else if key.code == KeyCode::Right && !app.is_in_edit_mode() {
                 app.update_state(FocusedLayout::TasksLayout);
-            } else if key.code == KeyCode::Char('u') && !app.is_in_edit_mode() {
+            } else if app.data_manager.config.get_key("undo") == key.code && !app.is_in_edit_mode() {
                 app.data_manager.undo();
                 app.data_manager.save_state();
-            } else if key.code == KeyCode::Char('r') && !app.is_in_edit_mode() {
+            } else if app.data_manager.config.get_key("redo") == key.code && !app.is_in_edit_mode() {
                 app.data_manager.redo();
                 app.data_manager.save_state();
             } else if key.code == KeyCode::Char('?') && !app.is_in_edit_mode() {

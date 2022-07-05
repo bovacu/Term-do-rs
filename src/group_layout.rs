@@ -1,4 +1,3 @@
-use crossterm::event::KeyCode;
 use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::{Rect};
@@ -34,90 +33,73 @@ impl LayoutCommonTrait for GroupLayout {
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent) {
         match self.layout_common.input_mode {
             InputMode::Navigate => {
-                match key_code.code {
-                    KeyCode::Char('a') => {
-                        self.layout_common.input_mode = InputMode::Add;
-                        self.layout_common.input = String::new();
-                        self.layout_common.cursor_pos = self.layout_common.input.width();
+                if data_manager.config.get_key("add_group") == key_code.code {
+                    self.layout_common.input_mode = InputMode::Add;
+                    self.layout_common.input = String::new();
+                    self.layout_common.cursor_pos = self.layout_common.input.width();
 
-                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
-                    },
-                    KeyCode::Esc => {
-                        if self.layout_common.input_mode != InputMode::Navigate { return; }
-                        self.layout_common.input_mode = InputMode::Navigate;
-                    },
-                    KeyCode::Char('e') => {
-                        if data_manager.get_group_items().is_empty() {
-                            return;
-                        }
-
-                        self.layout_common.input_mode = InputMode::Edit;
-                        self.layout_common.input = data_manager.get_group(data_manager.selected_group).name.clone();
-                        self.layout_common.cursor_pos = self.layout_common.input.width();
-
-                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
-                    },
-                    KeyCode::Char('d') => {
-                        if data_manager.get_group_items().is_empty() {
-                            return;
-                        }
-
-                        data_manager.apply();
-                        data_manager.delete_group_item(data_manager.selected_group);
-                        data_manager.save_state();
-                        data_manager.selected_group = 0;
-                    },
-                    KeyCode::Up => {
-                        if data_manager.get_group_items().is_empty() {
-                            return;
-                        }
-
-                        if data_manager.selected_group > 0 {
-                            data_manager.selected_group -= 1;
-                            data_manager.load_folding(data_manager.selected_group);
-                        }
-                    },
-                    KeyCode::Down => {
-                        if data_manager.get_group_items().is_empty() {
-                            return;
-                        }
-
-                        if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
-                            data_manager.selected_group += 1;
-                            data_manager.load_folding(data_manager.selected_group);
-                        }
+                    LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                } else if data_manager.config.get_key("edit_group") == key_code.code {
+                    if data_manager.get_group_items().is_empty() {
+                        return;
                     }
-                    _ => {}
+
+                    self.layout_common.input_mode = InputMode::Edit;
+                    self.layout_common.input = data_manager.get_group(data_manager.selected_group).name.clone();
+                    self.layout_common.cursor_pos = self.layout_common.input.width();
+
+                    LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                } else if data_manager.config.get_key("delete_group") == key_code.code {
+                    if data_manager.get_group_items().is_empty() {
+                        return;
+                    }
+
+                    data_manager.apply();
+                    data_manager.delete_group_item(data_manager.selected_group);
+                    data_manager.save_state();
+                    data_manager.selected_group = 0;
+                } else if data_manager.config.get_key("up_group") == key_code.code {
+                    if data_manager.get_group_items().is_empty() {
+                        return;
+                    }
+
+                    if data_manager.selected_group > 0 {
+                        data_manager.selected_group -= 1;
+                        data_manager.load_folding(data_manager.selected_group);
+                    }
+                } else if data_manager.config.get_key("down_group") == key_code.code {
+                    if data_manager.get_group_items().is_empty() {
+                        return;
+                    }
+
+                    if data_manager.selected_group < data_manager.get_group_items().len() - 1 {
+                        data_manager.selected_group += 1;
+                        data_manager.load_folding(data_manager.selected_group);
+                    }
                 }
             },
             InputMode::Add => {
-                match key_code.code {
-                    KeyCode::Enter => {
-                        data_manager.apply();
+                if data_manager.config.get_key("apply_add_or_edit_group") == key_code.code {
+                    data_manager.apply();
 
-                        let mut gi = GroupItem::new(data_manager);
-                        gi.name = self.layout_common.input.drain(..).collect();
-                        data_manager.add_group_item(gi);
-                        self.layout_common.input_mode = InputMode::Navigate;
-                        data_manager.save_state();
-                    },
-                    _ => {
-                        <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
-                    }
+                    let mut gi = GroupItem::new(data_manager);
+                    gi.name = self.layout_common.input.drain(..).collect();
+                    data_manager.add_group_item(gi);
+                    self.layout_common.input_mode = InputMode::Navigate;
+                    data_manager.save_state();
+                } else {
+                    <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
                 }
             },
             InputMode::Edit => {
-                match key_code.code {
-                    KeyCode::Enter => {
-                        data_manager.apply();
+                if data_manager.config.get_key("apply_add_or_edit_group") == key_code.code {
+                    data_manager.apply();
 
-                        data_manager.edit_group_item(data_manager.selected_group, self.layout_common.input.drain(..).collect());
-                        self.layout_common.input_mode = InputMode::Navigate;
-                        data_manager.save_state();
-                    },
-                    _ => {
-                        <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
-                    }
+                    data_manager.edit_group_item(data_manager.selected_group, self.layout_common.input.drain(..).collect());
+                    self.layout_common.input_mode = InputMode::Navigate;
+                    data_manager.save_state();
+                } else {
+                    <GroupLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
                 }
             }
         }

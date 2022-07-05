@@ -1,16 +1,18 @@
 use std::fs;
 use std::fs::File;
+use crossterm::event::KeyCode;
 use ini::{Ini, Properties};
 use tui::style::Color;
 
 pub struct ConfigManager {
     pub(crate) task: Properties,
     pub(crate) group: Properties,
+    input: Properties,
 }
 
 impl Default for ConfigManager {
     fn default() -> Self {
-        Self { task: Default::default(), group: Default::default() }
+        Self { task: Default::default(), group: Default::default(), input: Default::default() }
     }
 }
 
@@ -44,10 +46,12 @@ impl ConfigManager {
         let conf = Ini::load_from_file("settings.ini").unwrap();
         let task_conf = conf.section(Some("task")).unwrap().clone();
         let group_conf = conf.section(Some("group")).unwrap().clone();
+        let input_conf = conf.section(Some("key_bindings")).unwrap().clone();
 
         ConfigManager {
             task: task_conf,
             group: group_conf,
+            input: input_conf,
         }
     }
 
@@ -63,5 +67,33 @@ impl ConfigManager {
         let values: Vec<&str> = color.split(",").collect();
 
         return Color::Rgb(values[0].trim().parse().unwrap(), values[1].trim().parse().unwrap(), values[2].trim().parse().unwrap());
+    }
+
+    pub fn get_key(&self, key: &str) -> KeyCode {
+        let key_value = self.input.get(key).unwrap();
+        return if key_value.len() > 1 {
+            let kv_lower = key_value.to_lowercase();
+
+            match kv_lower.as_str() {
+                "backspace" => KeyCode::Backspace,
+                "enter" => KeyCode::Enter,
+                "end" => KeyCode::End,
+                "esc" => KeyCode::Esc,
+                "delete" => KeyCode::Delete,
+                "up" => KeyCode::Up,
+                "down" => KeyCode::Down,
+                "right" => KeyCode::Right,
+                "left" => KeyCode::Left,
+                "backtab" => KeyCode::BackTab,
+                "tab" => KeyCode::Tab,
+                "home" => KeyCode::Home,
+                "pageup" => KeyCode::PageUp,
+                "pagedown" => KeyCode::PageDown,
+                "insert" => KeyCode::Insert,
+                _ => KeyCode::Null
+            }
+        } else {
+            KeyCode::Char(key_value.chars().nth(0).unwrap())
+        }
     }
 }

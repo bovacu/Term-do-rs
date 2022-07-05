@@ -1,6 +1,6 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::ops::Add;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use tui::backend::Backend;
 use tui::Frame;
 use tui::layout::Rect;
@@ -186,196 +186,176 @@ impl LayoutCommonTrait for TaskLayout {
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: KeyEvent) {
         match self.layout_common.input_mode {
             InputMode::Navigate => {
-                match key_code.code {
-                    KeyCode::Char('a') => {
-                        self.layout_common.input_mode = InputMode::Add;
-                        self.is_adding_subtask = false;
-                        self.layout_common.input = String::new();
-                        self.layout_common.cursor_pos = self.layout_common.input.width();
+                if data_manager.config.get_key("add_task") == key_code.code {
+                    self.layout_common.input_mode = InputMode::Add;
+                    self.is_adding_subtask = false;
+                    self.layout_common.input = String::new();
+                    self.layout_common.cursor_pos = self.layout_common.input.width();
 
-                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
-                        DataManager::calculate_folded_hasmap(data_manager, data_manager.selected_task);
-                    },
-                    KeyCode::Char('A') => {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+                    LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                    DataManager::calculate_folded_hasmap(data_manager, data_manager.selected_task);
+                } else if data_manager.config.get_key("add_subtask") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        self.layout_common.input_mode = InputMode::Add;
-                        self.is_adding_subtask = true;
-                        self.layout_common.input = String::new();
-                        self.layout_common.cursor_pos = self.layout_common.input.width();
+                    self.layout_common.input_mode = InputMode::Add;
+                    self.is_adding_subtask = true;
+                    self.layout_common.input = String::new();
+                    self.layout_common.cursor_pos = self.layout_common.input.width();
 
-                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
-                    },
-                    KeyCode::Char('e') =>  {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+                    LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                } else if data_manager.config.get_key("edit_task_or_subtask") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        self.layout_common.input_mode = InputMode::Edit;
-                        self.is_adding_subtask = false;
+                    self.layout_common.input_mode = InputMode::Edit;
+                    self.is_adding_subtask = false;
 
-                        let selected_task = data_manager.selected_task;
-                        let selected_group = data_manager.selected_group;
-                        let gi = data_manager.get_group(selected_group);
-                        let task_name = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap().0.name.clone();
+                    let selected_task = data_manager.selected_task;
+                    let selected_group = data_manager.selected_group;
+                    let gi = data_manager.get_group(selected_group);
+                    let task_name = GroupItem::get_task_recursive_read_only(selected_task, gi.get_tasks()).unwrap().0.name.clone();
 
-                        self.layout_common.input = task_name;
-                        self.layout_common.cursor_pos = self.layout_common.input.width();
+                    self.layout_common.input = task_name;
+                    self.layout_common.cursor_pos = self.layout_common.input.width();
 
-                        LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
-                    },
-                    KeyCode::Char('d') =>  {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+                    LayoutCommon::recalculate_input_string_starting_point(&mut self.layout_common);
+                } else if data_manager.config.get_key("delete_task_or_subtask") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
 
-                        data_manager.apply();
+                    data_manager.apply();
 
-                        let selected_task = data_manager.selected_task;
-                        let selected_group = data_manager.selected_group;
-                        let parent_of_deleted : isize;
-                        let task_ro : (TaskItem, isize);
+                    let selected_task = data_manager.selected_task;
+                    let selected_group = data_manager.selected_group;
+                    let parent_of_deleted : isize;
+                    let task_ro : (TaskItem, isize);
 
 
-                        let gi_ro = data_manager.get_group_read_only(selected_group);
-                        let tasks = gi_ro.get_tasks();
-                        let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
-                        task_ro = (task.0.clone(), task.1);
-                        parent_of_deleted = task.0.parent;
+                    let gi_ro = data_manager.get_group_read_only(selected_group);
+                    let tasks = gi_ro.get_tasks();
+                    let task = GroupItem::get_task_recursive_read_only(selected_task, tasks).unwrap();
+                    task_ro = (task.0.clone(), task.1);
+                    parent_of_deleted = task.0.parent;
 
 
-                        let gi = data_manager.get_group(selected_group);
-                        gi.remove_task((&task_ro.0, task_ro.1));
+                    let gi = data_manager.get_group(selected_group);
+                    gi.remove_task((&task_ro.0, task_ro.1));
 
-                        if parent_of_deleted != -1 {
-                            gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
-                        }
-
-                        if selected_task == gi.get_tasks_and_subtasks_count().0 && selected_task > 0 {
-                            data_manager.selected_task -= 1;
-                        }
-
-                        if data_manager.folded_state.contains_key(&data_manager.selected_task) {
-                            data_manager.folded_state.remove(&data_manager.selected_task);
-                        }
-
-                        data_manager.load_folding(data_manager.selected_group);
-                        data_manager.save_state();
-                    },
-                    KeyCode::Esc => {
-                        if self.layout_common.input_mode != InputMode::Navigate { return; }
-                        self.layout_common.input_mode = InputMode::Navigate;
-                    },
-                    KeyCode::Char('c') =>  {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
-
-                        data_manager.apply();
-
-                        let selected_task = data_manager.selected_task;
-                        let gi = data_manager.get_group(data_manager.selected_group);
-                        gi.set_task_and_subtasks_done_or_undone(selected_task, None);
-
-                        data_manager.save_state();
-                    },
-                    KeyCode::Char('f') => {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
-
-                        data_manager.apply();
-
-
-                        let selected_task = data_manager.selected_task;
-                        let selected_group = data_manager.selected_group;
-                        let gi = data_manager.get_group(selected_group);
-
-                        TaskItem::fold(GroupItem::get_task_recursive(selected_task, &mut gi.get_tasks_mut()).unwrap().0);
-                        DataManager::calculate_folded_hasmap(data_manager, data_manager.selected_task);
-
-                        data_manager.save_state();
-                    },
-                    KeyCode::Up => {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
-
-                        if data_manager.selected_task > 0 {
-
-                            let mut biggest_group = 0;
-                            for (_, entry) in data_manager.folded_state.iter() {
-                                let previous_task = data_manager.selected_task - 1;
-                                if entry.contains(&previous_task) && entry.len() > biggest_group {
-                                    biggest_group = entry.len();
-                                }
-                            }
-
-                            data_manager.selected_task -= 1 + biggest_group;
-                        }
-                    },
-                    KeyCode::Down => {
-                        if data_manager.get_group_items().is_empty() { return; }
-                        if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
-
-                        let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
-                        let selected_task = data_manager.selected_task;
-                        let gi = data_manager.get_group_read_only(data_manager.selected_group);
-                        let task = gi.get_tasks().last().unwrap();
-                        let is_last_and_folded = task.id == selected_task && task.folded;
-
-                        if data_manager.selected_task < tasks.0 - 1 && !is_last_and_folded {
-                            for (_, entry) in data_manager.folded_state.iter() {
-                                let next_task = data_manager.selected_task + 1;
-                                if entry.contains(&next_task) {
-                                    if data_manager.selected_task + entry.len() < tasks.0 - 1 {
-                                        data_manager.selected_task += entry.len();
-                                    }
-                                    break;
-                                }
-                            }
-
-                            data_manager.selected_task += 1;
-                        }
+                    if parent_of_deleted != -1 {
+                        gi.update_parents_to_check_if_all_completed(parent_of_deleted as usize);
                     }
-                    _ => {}
+
+                    if selected_task == gi.get_tasks_and_subtasks_count().0 && selected_task > 0 {
+                        data_manager.selected_task -= 1;
+                    }
+
+                    if data_manager.folded_state.contains_key(&data_manager.selected_task) {
+                        data_manager.folded_state.remove(&data_manager.selected_task);
+                    }
+
+                    data_manager.load_folding(data_manager.selected_group);
+                    data_manager.save_state();
+                } else if data_manager.config.get_key("complete_or_uncomplete_task") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                    data_manager.apply();
+
+                    let selected_task = data_manager.selected_task;
+                    let gi = data_manager.get_group(data_manager.selected_group);
+                    gi.set_task_and_subtasks_done_or_undone(selected_task, None);
+
+                    data_manager.save_state();
+                } else if data_manager.config.get_key("fold_subtasks") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                    data_manager.apply();
+
+
+                    let selected_task = data_manager.selected_task;
+                    let selected_group = data_manager.selected_group;
+                    let gi = data_manager.get_group(selected_group);
+
+                    TaskItem::fold(GroupItem::get_task_recursive(selected_task, &mut gi.get_tasks_mut()).unwrap().0);
+                    DataManager::calculate_folded_hasmap(data_manager, data_manager.selected_task);
+
+                    data_manager.save_state();
+                } else if data_manager.config.get_key("down_task_or_subtask") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                    let tasks = data_manager.get_group_items()[data_manager.selected_group].get_tasks_and_subtasks_count();
+                    let selected_task = data_manager.selected_task;
+                    let gi = data_manager.get_group_read_only(data_manager.selected_group);
+                    let task = gi.get_tasks().last().unwrap();
+                    let is_last_and_folded = task.id == selected_task && task.folded;
+
+                    if data_manager.selected_task < tasks.0 - 1 && !is_last_and_folded {
+                        for (_, entry) in data_manager.folded_state.iter() {
+                            let next_task = data_manager.selected_task + 1;
+                            if entry.contains(&next_task) {
+                                if data_manager.selected_task + entry.len() < tasks.0 - 1 {
+                                    data_manager.selected_task += entry.len();
+                                }
+                                break;
+                            }
+                        }
+
+                        data_manager.selected_task += 1;
+                    }
+                } else if data_manager.config.get_key("up_task_or_subtask") == key_code.code {
+                    if data_manager.get_group_items().is_empty() { return; }
+                    if data_manager.get_group_items()[data_manager.selected_group].get_tasks().is_empty() { return; }
+
+                    if data_manager.selected_task > 0 {
+
+                        let mut biggest_group = 0;
+                        for (_, entry) in data_manager.folded_state.iter() {
+                            let previous_task = data_manager.selected_task - 1;
+                            if entry.contains(&previous_task) && entry.len() > biggest_group {
+                                biggest_group = entry.len();
+                            }
+                        }
+
+                        data_manager.selected_task -= 1 + biggest_group;
+                    }
                 }
             },
             InputMode::Add => {
-                match key_code.code {
-                    KeyCode::Enter =>  {
-                        data_manager.apply();
+                if data_manager.config.get_key("apply_add_or_edit_task_or_subtask") == key_code.code {
+                    data_manager.apply();
 
-                        let selected_task = data_manager.selected_task;
+                    let selected_task = data_manager.selected_task;
+                    let gi = data_manager.get_group(data_manager.selected_group);
+                    if !self.is_adding_subtask {
+                        gi.add_task(self.layout_common.input.drain(..).collect());
+                    } else {
+                        let new_id = gi.add_subtask(self.layout_common.input.drain(..).collect(), selected_task);
+
+                        let selected_task = new_id;
                         let gi = data_manager.get_group(data_manager.selected_group);
-                        if !self.is_adding_subtask {
-                            gi.add_task(self.layout_common.input.drain(..).collect());
-                        } else {
-                            let new_id = gi.add_subtask(self.layout_common.input.drain(..).collect(), selected_task);
-
-                            let selected_task = new_id;
-                            let gi = data_manager.get_group(data_manager.selected_group);
-                            gi.set_task_and_subtasks_done_or_undone(selected_task, Some(false));
-                        }
-
-                        self.layout_common.input_mode = InputMode::Navigate;
-                        data_manager.save_state();
-                    },
-                    _ => {
-                        <TaskLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
+                        gi.set_task_and_subtasks_done_or_undone(selected_task, Some(false));
                     }
+
+                    self.layout_common.input_mode = InputMode::Navigate;
+                    data_manager.save_state();
+                } else {
+                    <TaskLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
                 }
             },
             InputMode::Edit => {
-                match key_code.code {
-                    KeyCode::Enter =>  {
-                        data_manager.apply();
+                if data_manager.config.get_key("apply_add_or_edit_task_or_subtask") == key_code.code {
+                    data_manager.apply();
 
-                        let selected_task = data_manager.selected_task;
-                        let gi = data_manager.get_group(data_manager.selected_group);
-                        gi.edit_sub_task(selected_task, self.layout_common.input.drain(..).collect());
-                        self.layout_common.input_mode = InputMode::Navigate;
-                        data_manager.save_state();
-                    },
-                    _ => {
-                        <TaskLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
-                    }
+                    let selected_task = data_manager.selected_task;
+                    let gi = data_manager.get_group(data_manager.selected_group);
+                    gi.edit_sub_task(selected_task, self.layout_common.input.drain(..).collect());
+                    self.layout_common.input_mode = InputMode::Navigate;
+                    data_manager.save_state();
+                } else {
+                    <TaskLayout as LayoutCommonTrait>::poll_common_keys_input_mode(&key_code, &mut self.layout_common)
                 }
             }
         }
