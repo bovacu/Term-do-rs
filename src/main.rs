@@ -6,7 +6,9 @@ mod history;
 mod controls_layout;
 mod config_manager;
 
-use std::{error::Error, io};
+use std::{env, error::Error, fs, io};
+use std::collections::VecDeque;
+use std::fs::File;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -28,6 +30,7 @@ use crate::tasks_layout::{TaskLayout};
 use crate::controls_layout::ControlsLayout;
 
 use unicode_width::UnicodeWidthStr;
+use crate::config_manager::ConfigManager;
 
 trait LayoutCommonTrait {
     fn handle_input(&mut self, data_manager: &mut DataManager, key_code: crossterm::event::KeyEvent);
@@ -185,7 +188,47 @@ impl App {
     }
 }
 
+fn handle_command_line_mode(args: &mut VecDeque<String>) {
+    let mut config = ConfigManager::new();
+    let default = config.default_settings_file;
+
+    while !args.is_empty() {
+        let command_opt = args.pop_front();
+        let value_opt = args.pop_front();
+
+        if command_opt.is_none() || value_opt.is_none() {
+            break;
+        }
+
+        let command = command_opt.unwrap();
+        let value = value_opt.unwrap();
+
+        if command.eq("--set-settings-path") {
+            config.ini.with_section(Some("paths")).set("settings_path", value.as_str());
+            config.ini.write_to_file("settings.ini").expect("Couldn't write new config to settings.ini");
+        } else if command.eq("--set-data-path") {
+            config.ini.with_section(Some("paths")).set("data_path", value.as_str());
+            config.ini.write_to_file("settings.ini").expect("Couldn't write new config to settings.ini");
+        } else if command.eq("--create-data-in-path") {
+            File::create(format!("{}/{}", value, "data.json")).expect(format!("Couldn't create the file data.json at {}", value).as_str());
+            let data_manager = DataManager::new();
+            let content = serde_json::to_string_pretty(&data_manager).unwrap();
+            fs::write(format!("{}/{}", value, "data.json"), content).expect(format!("Couldn't write the file data.json at {}", value).as_str());
+        } else if command.eq("--create-settings-in-path") {
+            File::create(format!("{}/{}", value, "settings.ini")).expect(format!("Couldn't create the file settings.ini at {}", value).as_str());
+            fs::write(format!("{}/{}", value, "settings.ini"), &default).expect(format!("Couldn't write the file settings.ini at {}", value).as_str());
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
+    let mut args: VecDeque<String> = env::args().collect();
+    if args.len() > 1 {
+        args.pop_front();
+        handle_command_line_mode(&mut args);
+        return Ok(());
+    }
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;

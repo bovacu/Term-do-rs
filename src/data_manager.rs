@@ -363,14 +363,13 @@ impl DataManager {
     }
 
     pub fn load_state(&mut self) {
-        let read_file = fs::read_to_string("data/data.json");
+        let read_file = fs::read_to_string(format!("{}/data.json", self.config.path.get("data_path").unwrap()));
         match read_file {
             Err(_error) => {
-                fs::create_dir("data").expect("Couldn't create dir 'data'");
-                File::create("data/data.json").expect("Couldn't create file data/data.json");
+                File::create(format!("{}/data.json", self.config.path.get("data_path").unwrap())).expect("Couldn't create file data.json");
                 let base_data_manager = DataManager::new();
                 let full_json = serde_json::to_string_pretty(&base_data_manager).expect("Couldn't serialized");
-                fs::write("data/data.json", full_json).expect("Couldn't write to data file");
+                fs::write(format!("{}/data.json", self.config.path.get("data_path").unwrap()), full_json).expect("Couldn't write to data file");
             },
             Ok(file) => {
                 let full_json : DataManager = serde_json::from_str(&file).unwrap();
@@ -388,7 +387,7 @@ impl DataManager {
             return;
         }
         let full_json = serde_json::to_string_pretty(self).expect("Couldn't serialized");
-        fs::write("data/data.json", full_json).expect("Couldn't write to data file");
+        fs::write(format!("{}/data.json", self.config.path.get("data_path").unwrap()), full_json).expect("Couldn't write to data file");
     }
 
     pub fn apply(&mut self) {
