@@ -22,3 +22,13 @@ The configuration file for basic customization is alongside the executable, it i
 I've been using this app during the development of this app, and it is really useful for software development in general.
 
 Any error you find you can contact me (vazquezborja@hotmail.es), and I'll try to fix it as soon as possible!
+
+### Version 0.7
+
+In this version it was added:
+- Custom key bindings for the app through the settings.ini. Every single char is accepted, F(1...12) not yet and special chars are supported as long as crossterm accepts them (https://docs.rs/crossterm/0.17.7/crossterm/event/enum.KeyCode.html)
+- 4 command line commands have been added:
+  - --set-settings-path _path_ : this commands sets the dir (set just the dir, do not include the file name, which btw MUST be settings.ini) where your custom settings.ini is located. Now settings will be loaded from that file and not the default one. To go back to the default one set the _path_ value to . 
+  - --set-data-path _path_ : exactly the same as above but for the data file (set just the dir, do not include the file name, which btw MUST be data.json).
+  - --create-data-in-path _path_ : creates a data.json at the provided _path_. It does not set it as the new path, for that call '--set-data-path'
+  - --create-settings-in-path _path_ : creates a settings.ini at the provided _path_. It does not set it as the new path, for that call '--set-settings-path'
